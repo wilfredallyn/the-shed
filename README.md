@@ -40,6 +40,10 @@ Just open `index.html` in your browser. No build process or server required.
 - A modern web browser with Web MIDI API support
 - A MIDI keyboard (or use on-screen keyboard for testing)
 
+## Feedback
+
+Have suggestions or found a bug? DM me on Twitter/X: [@dksf](https://twitter.com/dksf)
+
 ## License
 
 MIT License - see [LICENSE](LICENSE) for details.
