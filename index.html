@@ -76,8 +76,8 @@
             </div>
             <p id="midiHint" class="text-xs text-slate-500 mt-3">Select your MIDI keyboard to start practicing.</p>
 
-            <!-- Preview Piano (visible before MIDI connected) -->
-            <div id="previewPiano" class="mt-6 pt-6 border-t border-slate-700">
+            <!-- Preview Piano (hidden by default since mode panels have pianos) -->
+            <div id="previewPiano" class="hidden mt-6 pt-6 border-t border-slate-700">
                 <p class="text-sm text-slate-400 mb-2">Test your keyboard:</p>
                 <div class="w-full overflow-x-auto bg-slate-900 rounded-lg p-2 border border-slate-700">
                     <svg id="previewPianoSvg" viewBox="0 0 1000 120" class="w-full h-32"></svg>
@@ -2292,9 +2292,7 @@
         }
 
         function onMidiDisconnected() {
-            // Hide practice section (but don't interrupt active games)
-            // Just show the preview piano again
-            document.getElementById('previewPiano').classList.remove('hidden');
+            // Re-show MIDI settings section
             document.getElementById('midiCollapseBtn').classList.add('hidden');
             document.getElementById('midiSettingsBtn').classList.add('hidden');
             document.getElementById('midiSection').classList.remove('hidden');
