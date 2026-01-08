@@ -11,6 +11,11 @@
         .key-black { fill: black; stroke: black; stroke-width: 1px; }
         .key-active { fill: #4ade80 !important; }
         .key-wrong { fill: #f87171 !important; }
+        .correct { fill: #4ade80 !important; }
+        .key-correct { fill: #4ade80 !important; }
+        .incorrect { fill: #f87171 !important; }
+        .wrong { fill: #f87171 !important; }
+        .key-error { fill: #f87171 !important; }
         .key-start { fill: #60a5fa !important; }
         .key-held { fill: #a78bfa !important; }
 
@@ -142,6 +147,9 @@
                 <button id="tritoneMode" onclick="switchMode('tritone')" title="Tritone substitution: replace V7 with bII7 (a tritone away)" class="mode-btn px-4 py-2 rounded text-sm font-semibold transition">
                     16. Tritone Sub
                 </button>
+                <button id="shellMode" onclick="switchMode('shell')" title="Shell voicings: Root + 3rd + 7th - the essential chord tones" class="mode-btn px-4 py-2 rounded text-sm font-semibold transition">
+                    17. Shell
+                </button>
             </div>
         </div>
 
@@ -186,6 +194,10 @@
                     <div>
                         <div class="text-xs text-slate-500 uppercase tracking-wide mb-1">Reharmonization</div>
                         <p><strong>16:</strong> Tritone substitution - replace V7 with bII7</p>
+                    </div>
+                    <div>
+                        <div class="text-xs text-slate-500 uppercase tracking-wide mb-1">Comping Fundamentals</div>
+                        <p><strong>17:</strong> Shell voicings - Root + 3rd + 7th, the essential chord tones</p>
                     </div>
                 </div>
                 <p class="text-xs text-slate-500 mt-4">Hover over any mode button for a description.</p>
@@ -1849,7 +1861,7 @@
                         </div>
                         <div class="flex items-center gap-2 ml-4">
                             <input type="checkbox" id="dom7v_showHints" class="w-4 h-4 rounded bg-slate-700 border-slate-600">
-                            <label for="dom7v_showHints" class="text-sm text-slate-400">Show note names</label>
+                            <label for="dom7v_showHints" class="text-sm text-slate-400">Show hints</label>
                         </div>
                     </div>
                     <p id="dom7v_settingsHint" class="text-xs text-slate-500 mt-3">Type A: 3-5-7-9 (from bottom). Type B: 7-9-3-5 (inverted, voice-leads smoothly with A).</p>
@@ -1995,7 +2007,7 @@
                         </div>
                         <div class="flex items-center gap-2 ml-4">
                             <input type="checkbox" id="extv_showHints" class="w-4 h-4 rounded bg-slate-700 border-slate-600">
-                            <label for="extv_showHints" class="text-sm text-slate-400">Show note names</label>
+                            <label for="extv_showHints" class="text-sm text-slate-400">Show hints</label>
                         </div>
                     </div>
                     <p id="extv_settingsHint" class="text-xs text-slate-500 mt-3">Maj6/9: 3-5-6-9. Min6/9: b3-5-6-9. Dom13: 3-13-7-9 (soulful dominant sound).</p>
@@ -2128,7 +2140,7 @@
                         </div>
                         <div class="flex items-center gap-2 ml-4">
                             <input type="checkbox" id="r251_showHints" class="w-4 h-4 rounded bg-slate-700 border-slate-600">
-                            <label for="r251_showHints" class="text-sm text-slate-400">Show note names</label>
+                            <label for="r251_showHints" class="text-sm text-slate-400">Show hints</label>
                         </div>
                     </div>
                     <p id="r251_settingsHint" class="text-xs text-slate-500 mt-3">ii (m7 Type A) → V (dom7 Type B) → I (Maj7 Type A). Smooth voice leading with minimal hand movement.</p>
@@ -2316,7 +2328,7 @@
 
                 <!-- Game Complete Display -->
                 <div id="pent_gameCompleteDisplay" class="mb-6 p-8 bg-slate-900 rounded-lg text-center hidden">
-                    <p class="text-2xl font-bold text-green-400 mb-4">Game Complete!</p>
+                    <h3 class="text-3xl font-bold text-green-400 mb-4">Practice Complete!</h3>
                     <div class="grid grid-cols-4 gap-4 mb-4">
                         <div>
                             <p class="text-slate-400 text-sm">Score</p>
@@ -2357,10 +2369,10 @@
                         </button>
                     </div>
                     <div class="flex gap-4 text-xs text-slate-400">
-                        <span>Round: <span id="pent_currentRound">0</span>/<span id="pent_totalRounds">12</span></span>
-                        <span>Score: <span id="pent_score">0</span></span>
-                        <span>Mistakes: <span id="pent_mistakes">0</span></span>
-                        <span>Slow: <span id="pent_slow">0</span></span>
+                        <span>Round: <span id="pent_currentRound" class="font-mono">0</span>/<span id="pent_totalRounds" class="font-mono">12</span></span>
+                        <span class="text-green-400">1st Try: <span id="pent_score" class="font-mono">0</span></span>
+                        <span class="text-red-400">Mistakes: <span id="pent_mistakes" class="font-mono">0</span></span>
+                        <span class="text-yellow-400">Slow: <span id="pent_slow" class="font-mono">0</span></span>
                     </div>
                 </div>
             </div>
@@ -2430,7 +2442,7 @@
                     <!-- Scale progress indicator (dynamic - 8 notes) -->
                     <div class="flex justify-center items-center gap-2 mb-4" id="bebop_noteProgress"></div>
 
-                    <p id="bebop_hint" class="text-sm text-slate-500 hidden"></p>
+                    <p id="bebop_hint" class="text-lg text-blue-400 hidden"></p>
                     <p id="bebop_feedbackText" class="text-lg font-semibold h-7"></p>
                 </div>
 
@@ -2444,19 +2456,19 @@
                         </div>
                         <div>
                             <p class="text-slate-400 text-sm">Avg Time</p>
-                            <p id="bebop_finalAvgTime" class="text-2xl font-bold text-white">--</p>
+                            <p id="bebop_finalAvgTime" class="text-2xl font-bold text-purple-400">--</p>
                         </div>
                         <div>
                             <p class="text-slate-400 text-sm">1st Try</p>
-                            <p id="bebop_finalFirstTry" class="text-2xl font-bold text-white">0%</p>
+                            <p id="bebop_finalFirstTry" class="text-2xl font-bold text-green-400">0%</p>
                         </div>
                         <div>
                             <p class="text-slate-400 text-sm">Mistakes</p>
-                            <p id="bebop_finalMistakes" class="text-2xl font-bold text-white">0</p>
+                            <p id="bebop_finalMistakes" class="text-2xl font-bold text-red-400">0</p>
                         </div>
                         <div>
                             <p class="text-slate-400 text-sm">Slow</p>
-                            <p id="bebop_finalSlow" class="text-2xl font-bold text-white">0</p>
+                            <p id="bebop_finalSlow" class="text-2xl font-bold text-yellow-400">0</p>
                         </div>
                     </div>
                 </div>
@@ -2467,17 +2479,17 @@
                 </div>
 
                 <!-- Controls -->
-                <div class="flex flex-wrap gap-4 justify-center items-center">
-                    <button id="bebop_startBtn" onclick="bebopStartGame()" class="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold transition">
-                        Start Practice
-                    </button>
-                    <div class="text-slate-400">
-                        Round: <span id="bebop_roundDisplay">0</span> / <span id="bebop_totalRounds">12</span>
+                <div class="flex justify-between items-center">
+                    <div class="space-x-4">
+                        <button id="bebop_startBtn" onclick="bebopStartGame()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-6 rounded transition">
+                            Start Game
+                        </button>
                     </div>
-                    <div class="flex gap-2 text-sm">
-                        <span class="text-green-400">1st Try: <span id="bebop_firstTry">0%</span></span>
-                        <span>Mistakes: <span id="bebop_mistakes">0</span></span>
-                        <span>Slow: <span id="bebop_slow">0</span></span>
+                    <div class="flex gap-4 text-xs text-slate-400">
+                        <span>Round: <span id="bebop_roundDisplay" class="font-mono">0</span>/<span id="bebop_totalRounds" class="font-mono">12</span></span>
+                        <span class="text-green-400">1st Try: <span id="bebop_firstTry" class="font-mono">0%</span></span>
+                        <span class="text-red-400">Mistakes: <span id="bebop_mistakes" class="font-mono">0</span></span>
+                        <span class="text-yellow-400">Slow: <span id="bebop_slow" class="font-mono">0</span></span>
                     </div>
                 </div>
             </div>
@@ -2582,19 +2594,19 @@
                         </div>
                         <div>
                             <p class="text-slate-400 text-sm">Avg Time</p>
-                            <p id="tritone_finalAvgTime" class="text-2xl font-bold text-white">--</p>
+                            <p id="tritone_finalAvgTime" class="text-2xl font-bold text-purple-400">--</p>
                         </div>
                         <div>
                             <p class="text-slate-400 text-sm">1st Try</p>
-                            <p id="tritone_finalFirstTry" class="text-2xl font-bold text-white">0%</p>
+                            <p id="tritone_finalFirstTry" class="text-2xl font-bold text-green-400">0%</p>
                         </div>
                         <div>
                             <p class="text-slate-400 text-sm">Mistakes</p>
-                            <p id="tritone_finalMistakes" class="text-2xl font-bold text-white">0</p>
+                            <p id="tritone_finalMistakes" class="text-2xl font-bold text-red-400">0</p>
                         </div>
                         <div>
                             <p class="text-slate-400 text-sm">Slow</p>
-                            <p id="tritone_finalSlow" class="text-2xl font-bold text-white">0</p>
+                            <p id="tritone_finalSlow" class="text-2xl font-bold text-yellow-400">0</p>
                         </div>
                     </div>
                 </div>
@@ -2605,17 +2617,17 @@
                 </div>
 
                 <!-- Controls -->
-                <div class="flex flex-wrap gap-4 justify-center items-center">
-                    <button id="tritone_startBtn" onclick="tritoneStartGame()" class="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold transition">
-                        Start Practice
-                    </button>
-                    <div class="text-slate-400">
-                        Round: <span id="tritone_roundDisplay">0</span> / <span id="tritone_totalRounds">12</span>
+                <div class="flex justify-between items-center">
+                    <div class="space-x-4">
+                        <button id="tritone_startBtn" onclick="tritoneStartGame()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-6 rounded transition">
+                            Start Game
+                        </button>
                     </div>
-                    <div class="flex gap-2 text-sm">
-                        <span class="text-green-400">1st Try: <span id="tritone_firstTry">0%</span></span>
-                        <span>Mistakes: <span id="tritone_mistakes">0</span></span>
-                        <span>Slow: <span id="tritone_slow">0</span></span>
+                    <div class="flex gap-4 text-xs text-slate-400">
+                        <span>Round: <span id="tritone_roundDisplay" class="font-mono">0</span>/<span id="tritone_totalRounds" class="font-mono">12</span></span>
+                        <span class="text-green-400">1st Try: <span id="tritone_firstTry" class="font-mono">0%</span></span>
+                        <span class="text-red-400">Mistakes: <span id="tritone_mistakes" class="font-mono">0</span></span>
+                        <span class="text-yellow-400">Slow: <span id="tritone_slow" class="font-mono">0</span></span>
                     </div>
                 </div>
             </div>
@@ -2663,6 +2675,154 @@
             </div>
         </div>
 
+        <!-- ==================== SHELL VOICINGS MODE ==================== -->
+        <div id="shellPanel" class="mode-panel hidden">
+            <div class="bg-slate-800 rounded-lg p-6 mb-6 shadow-lg relative overflow-hidden">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <div class="flex items-center gap-2 mb-1">
+                            <h2 class="text-xl font-semibold text-white">Shell Voicings</h2>
+                            <button onclick="document.getElementById('shellInfoModal').classList.remove('hidden')" class="text-slate-400 hover:text-white transition" title="About shell voicings">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            </button>
+                        </div>
+                        <p class="text-sm text-slate-400">The essential chord tones: <span class="text-blue-400">Root + 3rd + 7th</span></p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-sm text-slate-400">Avg Time</p>
+                        <p id="shell_responseTime" class="text-2xl font-mono timer-fast">--</p>
+                    </div>
+                </div>
+
+                <!-- Settings -->
+                <div id="shell_settingsPanel" class="mb-6 p-4 bg-slate-900 rounded-lg">
+                    <div class="flex flex-wrap gap-4 items-end">
+                        <div>
+                            <label class="text-sm text-slate-400 block mb-2">Chord Types:</label>
+                            <select id="shell_chordTypeSelect" class="bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white text-sm">
+                                <option value="all">All Types</option>
+                                <option value="maj7">Major 7 only</option>
+                                <option value="min7">Minor 7 only</option>
+                                <option value="dom7">Dominant 7 only</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-sm text-slate-400 block mb-2">Rounds:</label>
+                            <select id="shell_roundsSelect" class="bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white text-sm">
+                                <option value="6">6</option>
+                                <option value="12" selected>12</option>
+                                <option value="24">24</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center gap-2 ml-4">
+                            <input type="checkbox" id="shell_showHints" class="w-4 h-4 rounded bg-slate-700 border-slate-600">
+                            <label for="shell_showHints" class="text-sm text-slate-400">Show hints</label>
+                        </div>
+                    </div>
+                    <p id="shell_settingsHint" class="text-xs text-slate-500 mt-3">Maj7: R-3-7 | Min7: R-b3-b7 | Dom7: R-3-b7</p>
+                </div>
+
+                <!-- Challenge Display -->
+                <div id="shell_challengeDisplay" class="mb-6 p-8 bg-slate-900 rounded-lg text-center hidden">
+                    <p class="text-slate-400 mb-2">Play the shell voicing</p>
+                    <p class="text-5xl font-bold text-white mb-4" id="shell_chordDisplay">Cmaj7</p>
+                    <p id="shell_hint" class="text-lg text-blue-400 hidden"></p>
+                    <p id="shell_feedbackText" class="text-lg font-semibold h-7 mt-4"></p>
+                </div>
+
+                <!-- Game Complete Display -->
+                <div id="shell_completeDisplay" class="mb-6 p-8 bg-slate-900 rounded-lg text-center hidden">
+                    <h3 class="text-3xl font-bold text-green-400 mb-4">Practice Complete!</h3>
+                    <div class="grid grid-cols-5 gap-4 mb-4 text-center">
+                        <div>
+                            <p class="text-slate-400 text-sm">Rounds</p>
+                            <p id="shell_finalRounds" class="text-2xl font-bold text-white">12</p>
+                        </div>
+                        <div>
+                            <p class="text-slate-400 text-sm">Avg Time</p>
+                            <p id="shell_finalAvgTime" class="text-2xl font-bold text-purple-400">--</p>
+                        </div>
+                        <div>
+                            <p class="text-slate-400 text-sm">1st Try</p>
+                            <p id="shell_finalFirstTry" class="text-2xl font-bold text-green-400">0%</p>
+                        </div>
+                        <div>
+                            <p class="text-slate-400 text-sm">Mistakes</p>
+                            <p id="shell_finalMistakes" class="text-2xl font-bold text-red-400">0</p>
+                        </div>
+                        <div>
+                            <p class="text-slate-400 text-sm">Slow</p>
+                            <p id="shell_finalSlow" class="text-2xl font-bold text-yellow-400">0</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Piano Container -->
+                <div class="flex justify-center mb-6">
+                    <svg id="shell_pianoSvg" viewBox="0 0 700 150" class="max-w-full h-auto"></svg>
+                </div>
+
+                <!-- Controls -->
+                <div class="flex justify-between items-center">
+                    <div class="space-x-4">
+                        <button id="shell_startBtn" onclick="shellStartGame()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-6 rounded transition">
+                            Start Game
+                        </button>
+                    </div>
+                    <div class="flex gap-4 text-xs text-slate-400">
+                        <span>Round: <span id="shell_roundDisplay" class="font-mono">0</span>/<span id="shell_totalRounds" class="font-mono">12</span></span>
+                        <span class="text-green-400">1st Try: <span id="shell_firstTry" class="font-mono">0%</span></span>
+                        <span class="text-red-400">Mistakes: <span id="shell_mistakes" class="font-mono">0</span></span>
+                        <span class="text-yellow-400">Slow: <span id="shell_slow" class="font-mono">0</span></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- History Section -->
+            <div id="shell_historyContent" class="bg-slate-800 rounded-lg p-6 shadow-lg mb-6"></div>
+
+            <!-- Breakdown Section -->
+            <div id="shell_breakdownSection" class="bg-slate-800 rounded-lg p-6 shadow-lg hidden">
+                <h2 class="text-xl font-semibold mb-4 text-white">Chord Breakdown</h2>
+                <div id="shell_breakdownGrid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2"></div>
+            </div>
+        </div>
+
+        <!-- Shell Voicings Info Modal -->
+        <div id="shellInfoModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50" onclick="if(event.target === this) this.classList.add('hidden')">
+            <div class="bg-slate-800 rounded-lg p-6 max-w-lg mx-4 max-h-[80vh] overflow-y-auto">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold text-white">Shell Voicings</h3>
+                    <button onclick="document.getElementById('shellInfoModal').classList.add('hidden')" class="text-slate-400 hover:text-white">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+                <div class="text-sm text-slate-300 space-y-4">
+                    <div>
+                        <div class="text-blue-400 font-semibold mb-1">What is a shell voicing?</div>
+                        <p>Just three notes: <strong>Root + 3rd + 7th</strong>. The 5th is omitted because it doesn't define the chord quality - the 3rd and 7th do all the work.</p>
+                    </div>
+                    <div>
+                        <div class="text-blue-400 font-semibold mb-1">The formulas</div>
+                        <p class="text-slate-400 mb-1">Maj7: R + M3 + M7 (e.g., C-E-B)</p>
+                        <p class="text-slate-400 mb-1">Min7: R + m3 + m7 (e.g., C-Eb-Bb)</p>
+                        <p class="text-slate-400">Dom7: R + M3 + m7 (e.g., C-E-Bb)</p>
+                    </div>
+                    <div>
+                        <div class="text-blue-400 font-semibold mb-1">Why practice these?</div>
+                        <p>Shell voicings are the foundation of jazz comping. They leave room for the bass player, voice-lead smoothly through changes, and are the building blocks for more complex voicings.</p>
+                    </div>
+                    <div>
+                        <div class="text-blue-400 font-semibold mb-1">Peter Martin says...</div>
+                        <p>"Nobody believes I practice this... I practice these all the time. Root, shell, pretty, melody - these are the building blocks."</p>
+                    </div>
+                    <div class="pt-2 border-t border-slate-700">
+                        <p class="text-xs text-slate-500">Tip: Once comfortable, practice voice-leading shells through ii-V-I progressions - the 7th of one chord becomes the 3rd of the next.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Footer -->
         <footer class="text-center text-slate-500 text-sm mt-8 pt-4 border-t border-slate-700">
             Feedback? DM <a href="https://twitter.com/dksf" target="_blank" class="text-blue-400 hover:text-blue-300">@dksf</a> on Twitter/X
@@ -2694,8 +2854,8 @@
         function switchMode(mode) {
             currentMode = mode;
             document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
-            const modeButtons = { intervals: 'intervalsMode', chords: 'chordsMode', iivi: 'iiviMode', scales: 'scalesMode', ext: 'extMode', alt: 'altMode', adv: 'advMode', minorIivi: 'minorIiviMode', kb: 'kbMode', jtou: 'jtouMode', dom7v: 'dom7vMode', extv: 'extvMode', r251: 'r251Mode', pent: 'pentMode', bebop: 'bebopMode', tritone: 'tritoneMode' };
-            const modePanels = { intervals: 'intervalsPanel', chords: 'chordsPanel', iivi: 'iiviPanel', scales: 'scalesPanel', ext: 'extPanel', alt: 'altPanel', adv: 'advPanel', minorIivi: 'minorIiviPanel', kb: 'kbPanel', jtou: 'jtouPanel', dom7v: 'dom7vPanel', extv: 'extvPanel', r251: 'r251Panel', pent: 'pentPanel', bebop: 'bebopPanel', tritone: 'tritonePanel' };
+            const modeButtons = { intervals: 'intervalsMode', chords: 'chordsMode', iivi: 'iiviMode', scales: 'scalesMode', ext: 'extMode', alt: 'altMode', adv: 'advMode', minorIivi: 'minorIiviMode', kb: 'kbMode', jtou: 'jtouMode', dom7v: 'dom7vMode', extv: 'extvMode', r251: 'r251Mode', pent: 'pentMode', bebop: 'bebopMode', tritone: 'tritoneMode', shell: 'shellMode' };
+            const modePanels = { intervals: 'intervalsPanel', chords: 'chordsPanel', iivi: 'iiviPanel', scales: 'scalesPanel', ext: 'extPanel', alt: 'altPanel', adv: 'advPanel', minorIivi: 'minorIiviPanel', kb: 'kbPanel', jtou: 'jtouPanel', dom7v: 'dom7vPanel', extv: 'extvPanel', r251: 'r251Panel', pent: 'pentPanel', bebop: 'bebopPanel', tritone: 'tritonePanel', shell: 'shellPanel' };
             document.getElementById(modeButtons[mode]).classList.add('active');
             document.querySelectorAll('.mode-panel').forEach(panel => panel.classList.add('hidden'));
             document.getElementById(modePanels[mode]).classList.remove('hidden');
@@ -2858,6 +3018,7 @@
                 else if (currentMode === 'pent') pentOnNoteOn(note);
                 else if (currentMode === 'bebop') bebopOnNoteOn(note);
                 else if (currentMode === 'tritone') tritoneOnNoteOn(note);
+                else if (currentMode === 'shell') shellOnNoteOn(note);
             } else if ((cmd & 0xF0) === 128 || ((cmd & 0xF0) === 144 && vel === 0)) {
                 heldNotes.delete(note);
                 // Clear preview piano highlight
@@ -2878,6 +3039,7 @@
                 else if (currentMode === 'pent') pentOnNoteOff(note);
                 else if (currentMode === 'bebop') bebopOnNoteOff(note);
                 else if (currentMode === 'tritone') tritoneOnNoteOff(note);
+                else if (currentMode === 'shell') shellOnNoteOff(note);
             }
         }
 
@@ -2940,8 +3102,23 @@
 
         function clearAllHighlights(svgId) {
             document.querySelectorAll(`#${svgId} .key`).forEach(k => {
-                k.classList.remove('key-active', 'key-wrong', 'key-start', 'key-held');
+                k.classList.remove('key-active', 'key-wrong', 'key-start', 'key-held', 'correct', 'incorrect', 'wrong', 'key-correct', 'key-error');
             });
+        }
+
+        function clearPiano(svgId) {
+            clearAllHighlights(svgId);
+        }
+
+        function clearKeyHighlight(svgId, midi) {
+            const key = document.querySelector(`#${svgId} [data-note="${midi}"]`);
+            if (key) {
+                key.classList.remove('key-active', 'key-wrong', 'key-held', 'correct', 'incorrect', 'wrong', 'key-correct', 'key-error');
+            }
+        }
+
+        function clearPianoHighlights(svgId) {
+            clearAllHighlights(svgId);
         }
 
         // ==================== INTERVALS MODE ====================
@@ -9105,8 +9282,11 @@
             document.getElementById('pent_settingsPanel').classList.add('hidden');
             document.getElementById('pent_challengeDisplay').classList.remove('hidden');
             document.getElementById('pent_gameCompleteDisplay').classList.add('hidden');
-            document.getElementById('pent_startBtn').innerText = 'Playing...';
-            document.getElementById('pent_startBtn').disabled = true;
+            document.getElementById('pent_startBtn').innerText = 'Stop';
+            document.getElementById('pent_startBtn').disabled = false;
+            document.getElementById('pent_startBtn').onclick = pentStopGame;
+            document.getElementById('pent_startBtn').classList.remove('bg-blue-600', 'hover:bg-blue-500');
+            document.getElementById('pent_startBtn').classList.add('bg-slate-600', 'hover:bg-slate-500');
             document.getElementById('pent_totalRounds').innerText = rounds;
 
             // Show/hide hints
@@ -9114,7 +9294,30 @@
                 el.style.display = showHints ? 'block' : 'none';
             });
 
-            pentNextChallenge();
+            pentRunCountdown(3);
+        }
+
+        function pentStopGame() {
+            pent_isPlaying = false;
+            document.getElementById('pent_settingsPanel').classList.remove('hidden');
+            document.getElementById('pent_challengeDisplay').classList.add('hidden');
+            document.getElementById('pent_startBtn').innerText = 'Start Game';
+            document.getElementById('pent_startBtn').disabled = false;
+            document.getElementById('pent_startBtn').onclick = pentStartGame;
+            document.getElementById('pent_startBtn').classList.remove('bg-slate-600', 'hover:bg-slate-500');
+            document.getElementById('pent_startBtn').classList.add('bg-blue-600', 'hover:bg-blue-500');
+            clearPiano('pent_pianoSvg');
+        }
+
+        function pentRunCountdown(count) {
+            if (!pent_isPlaying) return;
+            document.getElementById('pent_rootDisplay').innerText = count;
+            document.getElementById('pent_scaleNameDisplay').innerText = '';
+            if (count > 0) {
+                setTimeout(() => pentRunCountdown(count - 1), 800);
+            } else {
+                pentNextChallenge();
+            }
         }
 
         function pentNextChallenge() {
@@ -9188,7 +9391,7 @@
         }
 
         function pentOnNoteOn(midi) {
-            if (!pent_isPlaying || !pent_challenge) return;
+            if (!pent_isPlaying || !pent_challenge || !pent_challengeStartTime) return;
 
             const pitchClass = midi % 12;
             const expectedPitchClass = pent_challenge.expectedNotes[pent_currentNoteIndex];
@@ -9291,8 +9494,11 @@
 
             document.getElementById('pent_slow').innerText = pent_slowCount;
             document.getElementById('pent_settingsPanel').classList.remove('hidden');
-            document.getElementById('pent_startBtn').innerText = 'Start Game';
+            document.getElementById('pent_startBtn').innerText = 'Play Again';
             document.getElementById('pent_startBtn').disabled = false;
+            document.getElementById('pent_startBtn').onclick = pentStartGame;
+            document.getElementById('pent_startBtn').classList.remove('bg-slate-600', 'hover:bg-slate-500');
+            document.getElementById('pent_startBtn').classList.add('bg-blue-600', 'hover:bg-blue-500');
 
             // Save to history
             const gameRecord = {
@@ -9502,23 +9708,39 @@
             document.getElementById('bebop_settingsPanel').classList.add('hidden');
             document.getElementById('bebop_challengeDisplay').classList.remove('hidden');
             document.getElementById('bebop_completeDisplay').classList.add('hidden');
-            document.getElementById('bebop_startBtn').textContent = 'Stop Practice';
+            document.getElementById('bebop_startBtn').textContent = 'Stop';
             document.getElementById('bebop_startBtn').onclick = bebopStopGame;
+            document.getElementById('bebop_startBtn').classList.remove('bg-blue-600', 'hover:bg-blue-500');
+            document.getElementById('bebop_startBtn').classList.add('bg-slate-600', 'hover:bg-slate-500');
             document.getElementById('bebop_totalRounds').textContent = rounds;
             document.getElementById('bebop_firstTry').textContent = '0%';
             document.getElementById('bebop_mistakes').textContent = '0';
             document.getElementById('bebop_slow').textContent = '0';
             document.getElementById('bebop_responseTime').textContent = '--';
 
-            bebopNextChallenge();
+            bebopRunCountdown(3);
+        }
+
+        function bebopRunCountdown(count) {
+            if (!bebop_isPlaying) return;
+            document.getElementById('bebop_rootDisplay').textContent = count;
+            document.getElementById('bebop_scaleNameDisplay').textContent = '';
+            document.getElementById('bebop_noteProgress').innerHTML = '';
+            if (count > 0) {
+                setTimeout(() => bebopRunCountdown(count - 1), 800);
+            } else {
+                bebopNextChallenge();
+            }
         }
 
         function bebopStopGame() {
             bebop_isPlaying = false;
             document.getElementById('bebop_settingsPanel').classList.remove('hidden');
             document.getElementById('bebop_challengeDisplay').classList.add('hidden');
-            document.getElementById('bebop_startBtn').textContent = 'Start Practice';
+            document.getElementById('bebop_startBtn').textContent = 'Start Game';
             document.getElementById('bebop_startBtn').onclick = bebopStartGame;
+            document.getElementById('bebop_startBtn').classList.remove('bg-slate-600', 'hover:bg-slate-500');
+            document.getElementById('bebop_startBtn').classList.add('bg-blue-600', 'hover:bg-blue-500');
             clearPiano('bebop_pianoSvg');
         }
 
@@ -9583,7 +9805,7 @@
         }
 
         function bebopOnNoteOn(midi) {
-            if (!bebop_isPlaying || !bebop_challenge) return;
+            if (!bebop_isPlaying || !bebop_challenge || !bebop_challengeStartTime) return;
 
             const pitchClass = midi % 12;
             const expectedPitchClass = bebop_challenge.expectedNotes[bebop_currentNoteIndex];
@@ -9658,8 +9880,10 @@
 
             document.getElementById('bebop_challengeDisplay').classList.add('hidden');
             document.getElementById('bebop_completeDisplay').classList.remove('hidden');
-            document.getElementById('bebop_startBtn').textContent = 'Start Practice';
+            document.getElementById('bebop_startBtn').textContent = 'Play Again';
             document.getElementById('bebop_startBtn').onclick = bebopStartGame;
+            document.getElementById('bebop_startBtn').classList.remove('bg-slate-600', 'hover:bg-slate-500');
+            document.getElementById('bebop_startBtn').classList.add('bg-blue-600', 'hover:bg-blue-500');
             document.getElementById('bebop_settingsPanel').classList.remove('hidden');
 
             // Final stats
@@ -9851,23 +10075,39 @@
             document.getElementById('tritone_settingsPanel').classList.add('hidden');
             document.getElementById('tritone_challengeDisplay').classList.remove('hidden');
             document.getElementById('tritone_completeDisplay').classList.add('hidden');
-            document.getElementById('tritone_startBtn').textContent = 'Stop Practice';
+            document.getElementById('tritone_startBtn').textContent = 'Stop';
             document.getElementById('tritone_startBtn').onclick = tritoneStopGame;
+            document.getElementById('tritone_startBtn').classList.remove('bg-blue-600', 'hover:bg-blue-500');
+            document.getElementById('tritone_startBtn').classList.add('bg-slate-600', 'hover:bg-slate-500');
             document.getElementById('tritone_totalRounds').textContent = rounds;
             document.getElementById('tritone_firstTry').textContent = '0%';
             document.getElementById('tritone_mistakes').textContent = '0';
             document.getElementById('tritone_slow').textContent = '0';
             document.getElementById('tritone_responseTime').textContent = '--';
 
-            tritoneNextChallenge();
+            tritoneRunCountdown(3);
+        }
+
+        function tritoneRunCountdown(count) {
+            if (!tritone_isPlaying) return;
+            document.getElementById('tritone_chordDisplay').textContent = count;
+            document.getElementById('tritone_hint').classList.add('hidden');
+            document.getElementById('tritone_feedbackText').textContent = '';
+            if (count > 0) {
+                setTimeout(() => tritoneRunCountdown(count - 1), 800);
+            } else {
+                tritoneNextChallenge();
+            }
         }
 
         function tritoneStopGame() {
             tritone_isPlaying = false;
             document.getElementById('tritone_settingsPanel').classList.remove('hidden');
             document.getElementById('tritone_challengeDisplay').classList.add('hidden');
-            document.getElementById('tritone_startBtn').textContent = 'Start Practice';
+            document.getElementById('tritone_startBtn').textContent = 'Start Game';
             document.getElementById('tritone_startBtn').onclick = tritoneStartGame;
+            document.getElementById('tritone_startBtn').classList.remove('bg-slate-600', 'hover:bg-slate-500');
+            document.getElementById('tritone_startBtn').classList.add('bg-blue-600', 'hover:bg-blue-500');
             clearPiano('tritone_pianoSvg');
         }
 
@@ -9908,7 +10148,7 @@
         }
 
         function tritoneOnNoteOn(midi) {
-            if (!tritone_isPlaying || !tritone_challenge) return;
+            if (!tritone_isPlaying || !tritone_challenge || !tritone_challengeStartTime) return;
 
             const pitchClass = midi % 12;
             const expectedPitchClasses = tritone_config.voicing === 'shell'
@@ -9981,8 +10221,10 @@
 
             document.getElementById('tritone_challengeDisplay').classList.add('hidden');
             document.getElementById('tritone_completeDisplay').classList.remove('hidden');
-            document.getElementById('tritone_startBtn').textContent = 'Start Practice';
+            document.getElementById('tritone_startBtn').textContent = 'Play Again';
             document.getElementById('tritone_startBtn').onclick = tritoneStartGame;
+            document.getElementById('tritone_startBtn').classList.remove('bg-slate-600', 'hover:bg-slate-500');
+            document.getElementById('tritone_startBtn').classList.add('bg-blue-600', 'hover:bg-blue-500');
             document.getElementById('tritone_settingsPanel').classList.remove('hidden');
 
             // Final stats
@@ -10125,6 +10367,381 @@
             content.innerHTML = html;
         }
 
+        // ============ SHELL VOICINGS (Mode 17) ============
+        // Shell voicing formulas: Root + 3rd + 7th
+        const SHELL_TYPES = {
+            'maj7': { intervals: [0, 4, 11], formula: 'R 3 7', name: 'maj7' },
+            'min7': { intervals: [0, 3, 10], formula: 'R ♭3 ♭7', name: 'min7' },
+            'dom7': { intervals: [0, 4, 10], formula: 'R 3 ♭7', name: '7' }
+        };
+
+        let shell_isPlaying = false;
+        let shell_challenge = null;
+        let shell_usedChallenges = new Set();
+        let shell_challengeStartTime = null;
+        let shell_config = null;
+        let shell_currentRound = 0;
+        let shell_firstTryCorrect = 0;
+        let shell_totalMistakes = 0;
+        let shell_roundHadMistake = false;
+        let shell_stats = {};
+        let shell_allTimes = [];
+        let shell_slowCount = 0;
+        let shell_history = [];
+        let shell_cumulativeStats = {};
+        let shell_heldNotes = new Set();
+
+        function shellGetChallenge(root, chordType) {
+            const typeInfo = SHELL_TYPES[chordType];
+            const pitchClasses = new Set(typeInfo.intervals.map(i => (root + i) % 12));
+            const chordName = NOTE_NAMES[root] + typeInfo.name;
+            const noteNames = typeInfo.intervals.map(i => NOTE_NAMES[(root + i) % 12]).join(' - ');
+
+            return {
+                root,
+                chordType,
+                name: chordName,
+                pitchClasses,
+                noteNames,
+                formula: typeInfo.formula
+            };
+        }
+
+        function shellStartGame() {
+            const chordTypeSetting = document.getElementById('shell_chordTypeSelect').value;
+            const rounds = parseInt(document.getElementById('shell_roundsSelect').value);
+            const showHints = document.getElementById('shell_showHints').checked;
+
+            shell_config = { chordType: chordTypeSetting, rounds, showHints };
+            shell_usedChallenges.clear();
+            shell_currentRound = 0;
+            shell_firstTryCorrect = 0;
+            shell_totalMistakes = 0;
+            shell_stats = {};
+            shell_allTimes = [];
+            shell_slowCount = 0;
+
+            document.getElementById('shell_settingsPanel').classList.add('hidden');
+            document.getElementById('shell_challengeDisplay').classList.remove('hidden');
+            document.getElementById('shell_completeDisplay').classList.add('hidden');
+            document.getElementById('shell_breakdownSection').classList.add('hidden');
+            document.getElementById('shell_startBtn').textContent = 'Stop';
+            document.getElementById('shell_startBtn').onclick = shellStopGame;
+            document.getElementById('shell_startBtn').classList.remove('bg-blue-600', 'hover:bg-blue-500');
+            document.getElementById('shell_startBtn').classList.add('bg-slate-600', 'hover:bg-slate-500');
+            document.getElementById('shell_totalRounds').innerText = rounds;
+            document.getElementById('shell_roundDisplay').innerText = '0';
+            document.getElementById('shell_firstTry').innerText = '0%';
+            document.getElementById('shell_mistakes').innerText = '0';
+            document.getElementById('shell_slow').innerText = '0';
+            document.getElementById('shell_responseTime').innerText = '--';
+
+            shell_isPlaying = true;
+
+            // Countdown
+            const chordDisplay = document.getElementById('shell_chordDisplay');
+            let count = 3;
+            chordDisplay.innerText = count;
+            document.getElementById('shell_hint').classList.add('hidden');
+            document.getElementById('shell_feedbackText').innerText = '';
+
+            const countdownInterval = setInterval(() => {
+                count--;
+                if (count > 0) {
+                    chordDisplay.innerText = count;
+                } else {
+                    clearInterval(countdownInterval);
+                    shellNextChallenge();
+                }
+            }, 500);
+        }
+
+        function shellStopGame() {
+            shell_isPlaying = false;
+            document.getElementById('shell_settingsPanel').classList.remove('hidden');
+            document.getElementById('shell_challengeDisplay').classList.add('hidden');
+            document.getElementById('shell_startBtn').textContent = 'Start Game';
+            document.getElementById('shell_startBtn').onclick = shellStartGame;
+            document.getElementById('shell_startBtn').classList.remove('bg-slate-600', 'hover:bg-slate-500');
+            document.getElementById('shell_startBtn').classList.add('bg-blue-600', 'hover:bg-blue-500');
+            clearPianoHighlights('shell_pianoSvg');
+        }
+
+        function shellNextChallenge() {
+            if (!shell_isPlaying) return;
+
+            // Get available chord types
+            let availableTypes;
+            if (shell_config.chordType === 'all') {
+                availableTypes = ['maj7', 'min7', 'dom7'];
+            } else {
+                availableTypes = [shell_config.chordType];
+            }
+
+            // Generate all possible challenges
+            const allChallenges = [];
+            for (let root = 0; root < 12; root++) {
+                for (const type of availableTypes) {
+                    allChallenges.push(`${root}-${type}`);
+                }
+            }
+
+            // Filter out used ones
+            const available = allChallenges.filter(c => !shell_usedChallenges.has(c));
+
+            if (available.length === 0) {
+                shell_usedChallenges.clear();
+                available.push(...allChallenges);
+            }
+
+            // Pick random challenge
+            const pick = available[Math.floor(Math.random() * available.length)];
+            shell_usedChallenges.add(pick);
+
+            const [rootStr, type] = pick.split('-');
+            const root = parseInt(rootStr);
+
+            shell_challenge = shellGetChallenge(root, type);
+            shell_roundHadMistake = false;
+            shell_heldNotes.clear();
+            shell_challengeStartTime = Date.now();
+            shell_currentRound++;
+
+            // Initialize stats for this chord
+            const statKey = shell_challenge.name;
+            if (!shell_stats[statKey]) {
+                shell_stats[statKey] = { attempts: 0, mistakes: 0, times: [] };
+            }
+            shell_stats[statKey].attempts++;
+
+            // Update display
+            document.getElementById('shell_chordDisplay').innerText = shell_challenge.name;
+            document.getElementById('shell_roundDisplay').innerText = shell_currentRound;
+            document.getElementById('shell_feedbackText').innerText = '';
+
+            // Show hint if enabled
+            const hintEl = document.getElementById('shell_hint');
+            if (shell_config.showHints) {
+                hintEl.innerText = `${shell_challenge.formula}: ${shell_challenge.noteNames}`;
+                hintEl.classList.remove('hidden');
+            } else {
+                hintEl.classList.add('hidden');
+            }
+
+            clearPianoHighlights('shell_pianoSvg');
+        }
+
+        function shellOnNoteOn(midi) {
+            if (!shell_isPlaying || !shell_challenge || !shell_challengeStartTime) return;
+
+            const pitchClass = midi % 12;
+            shell_heldNotes.add(midi);
+
+            const isCorrect = shell_challenge.pitchClasses.has(pitchClass);
+            highlightKey('shell_pianoSvg', midi, isCorrect ? 'correct' : 'wrong');
+
+            if (!isCorrect) {
+                shell_totalMistakes++;
+                shell_roundHadMistake = true;
+                shell_stats[shell_challenge.name].mistakes++;
+                document.getElementById('shell_mistakes').innerText = shell_totalMistakes;
+                document.getElementById('shell_feedbackText').innerText = '✗';
+                document.getElementById('shell_feedbackText').className = 'text-lg font-semibold h-7 mt-4 text-red-400';
+            }
+
+            // Check if all required notes are held
+            const heldPitchClasses = new Set(Array.from(shell_heldNotes).map(n => n % 12));
+            const allCorrect = Array.from(shell_challenge.pitchClasses).every(pc => heldPitchClasses.has(pc));
+
+            if (allCorrect && heldPitchClasses.size >= 3) {
+                const elapsed = Date.now() - shell_challengeStartTime;
+                shell_allTimes.push(elapsed);
+                shell_stats[shell_challenge.name].times.push(elapsed);
+
+                if (elapsed > 2000) {
+                    shell_slowCount++;
+                    document.getElementById('shell_slow').innerText = shell_slowCount;
+                }
+
+                if (!shell_roundHadMistake) {
+                    shell_firstTryCorrect++;
+                }
+
+                const pct = Math.round((shell_firstTryCorrect / shell_currentRound) * 100);
+                document.getElementById('shell_firstTry').innerText = pct + '%';
+
+                // Update response time
+                const timeClass = elapsed < 2000 ? 'timer-fast' : (elapsed < 4000 ? 'timer-medium' : 'timer-slow');
+                document.getElementById('shell_responseTime').innerText = (elapsed / 1000).toFixed(1) + 's';
+                document.getElementById('shell_responseTime').className = 'text-2xl font-mono ' + timeClass;
+
+                document.getElementById('shell_feedbackText').innerText = '✓ ' + shell_challenge.noteNames;
+                document.getElementById('shell_feedbackText').className = 'text-lg font-semibold h-7 mt-4 text-green-400';
+
+                if (shell_currentRound >= shell_config.rounds) {
+                    setTimeout(() => shellEndGame(), 800);
+                } else {
+                    setTimeout(() => shellNextChallenge(), 800);
+                }
+            }
+        }
+
+        function shellOnNoteOff(midi) {
+            shell_heldNotes.delete(midi);
+            clearKeyHighlight('shell_pianoSvg', midi);
+        }
+
+        function shellEndGame() {
+            shell_isPlaying = false;
+
+            const avgTime = shell_allTimes.length > 0
+                ? Math.round(shell_allTimes.reduce((a, b) => a + b, 0) / shell_allTimes.length)
+                : 0;
+            const firstTryPct = Math.round((shell_firstTryCorrect / shell_currentRound) * 100);
+
+            // Update cumulative stats
+            shellUpdateCumulativeStats();
+
+            // Save to history
+            shell_history.unshift({
+                date: new Date().toISOString(),
+                rounds: shell_currentRound,
+                avgTime,
+                firstTryPct,
+                mistakes: shell_totalMistakes,
+                slowCount: shell_slowCount,
+                config: { ...shell_config }
+            });
+            shell_history = shell_history.slice(0, 20);
+            localStorage.setItem('shell_history', JSON.stringify(shell_history));
+
+            // Update display
+            document.getElementById('shell_challengeDisplay').classList.add('hidden');
+            document.getElementById('shell_completeDisplay').classList.remove('hidden');
+            document.getElementById('shell_finalRounds').innerText = shell_currentRound;
+            document.getElementById('shell_finalAvgTime').innerText = (avgTime / 1000).toFixed(1) + 's';
+            document.getElementById('shell_finalFirstTry').innerText = firstTryPct + '%';
+            document.getElementById('shell_finalMistakes').innerText = shell_totalMistakes;
+            document.getElementById('shell_finalSlow').innerText = shell_slowCount;
+
+            document.getElementById('shell_startBtn').textContent = 'Play Again';
+            document.getElementById('shell_startBtn').onclick = shellStartGame;
+            document.getElementById('shell_startBtn').classList.remove('bg-slate-600', 'hover:bg-slate-500');
+            document.getElementById('shell_startBtn').classList.add('bg-blue-600', 'hover:bg-blue-500');
+            document.getElementById('shell_settingsPanel').classList.remove('hidden');
+
+            shellShowBreakdown();
+            shellRenderHistory();
+        }
+
+        function shellShowBreakdown() {
+            const grid = document.getElementById('shell_breakdownGrid');
+            grid.innerHTML = '';
+
+            Object.keys(shell_stats).sort().forEach(key => {
+                const stat = shell_stats[key];
+                const avgTime = stat.times.length > 0
+                    ? (stat.times.reduce((a, b) => a + b, 0) / stat.times.length / 1000).toFixed(1)
+                    : '-';
+                const accuracy = stat.attempts > 0
+                    ? Math.round(((stat.attempts - stat.mistakes) / stat.attempts) * 100)
+                    : 0;
+
+                const isSlow = avgTime !== '-' && parseFloat(avgTime) > 2;
+                const hasErrors = stat.mistakes > 0;
+
+                grid.innerHTML += `
+                    <div class="p-2 bg-slate-700 rounded text-center ${hasErrors ? 'border border-red-500/30' : ''}">
+                        <div class="font-semibold text-white">${key}</div>
+                        <div class="text-xs ${accuracy < 100 ? 'text-red-400' : 'text-green-400'}">${accuracy}%</div>
+                        <div class="text-xs ${isSlow ? 'text-yellow-400' : 'text-slate-400'}">${avgTime}s</div>
+                    </div>
+                `;
+            });
+
+            document.getElementById('shell_breakdownSection').classList.remove('hidden');
+        }
+
+        function shellLoadHistory() {
+            const saved = localStorage.getItem('shell_history');
+            if (saved) {
+                shell_history = JSON.parse(saved);
+            }
+            const cumSaved = localStorage.getItem('shell_cumulativeStats');
+            if (cumSaved) {
+                shell_cumulativeStats = JSON.parse(cumSaved);
+            }
+            shellRenderHistory();
+        }
+
+        function shellUpdateCumulativeStats() {
+            Object.keys(shell_stats).forEach(key => {
+                const stat = shell_stats[key];
+                if (!shell_cumulativeStats[key]) {
+                    shell_cumulativeStats[key] = { attempts: 0, mistakes: 0 };
+                }
+                shell_cumulativeStats[key].attempts += stat.attempts;
+                shell_cumulativeStats[key].mistakes += stat.mistakes;
+            });
+            localStorage.setItem('shell_cumulativeStats', JSON.stringify(shell_cumulativeStats));
+        }
+
+        function shellGetProblemAreas() {
+            const dominated = [];
+            Object.keys(shell_cumulativeStats).forEach(key => {
+                const stat = shell_cumulativeStats[key];
+                if (stat.attempts >= 3) {
+                    const mistakeRate = stat.mistakes / stat.attempts;
+                    if (mistakeRate > 0.3) {
+                        dominated.push({ key, mistakeRate, attempts: stat.attempts });
+                    }
+                }
+            });
+            return dominated.sort((a, b) => b.mistakeRate - a.mistakeRate).slice(0, 5);
+        }
+
+        function shellRenderHistory() {
+            const content = document.getElementById('shell_historyContent');
+            if (shell_history.length === 0) {
+                content.innerHTML = '<h2 class="text-xl font-semibold mb-4 text-white">History</h2><p class="text-slate-400">No games played yet.</p>';
+                return;
+            }
+
+            let html = '<h2 class="text-xl font-semibold mb-4 text-white">History</h2>';
+            html += '<div class="space-y-2">';
+
+            shell_history.slice(0, 5).forEach(game => {
+                const date = new Date(game.date).toLocaleDateString();
+                const avgSec = (game.avgTime / 1000).toFixed(1);
+                const typeLabel = game.config?.chordType === 'all' ? 'All' : game.config?.chordType || 'All';
+                html += `<div class="flex justify-between items-center p-2 bg-slate-700 rounded">
+                    <span class="text-slate-400">${date}</span>
+                    <span class="text-xs text-slate-500">${typeLabel}</span>
+                    <span class="text-white">${game.rounds} rds</span>
+                    <span class="${game.avgTime < 2000 ? 'text-green-400' : 'text-yellow-400'}">${avgSec}s</span>
+                    <span class="text-green-400">${game.firstTryPct}%</span>
+                </div>`;
+            });
+
+            html += '</div>';
+
+            // Problem areas
+            const problemAreas = shellGetProblemAreas();
+            if (problemAreas.length > 0) {
+                html += `<div class="border-t border-slate-700 pt-3 mt-3">
+                    <p class="text-xs text-slate-400 mb-2">Problem Areas</p>
+                    <div class="flex flex-wrap gap-2">`;
+                problemAreas.forEach(area => {
+                    html += `<span class="px-2 py-1 bg-red-900/30 border border-red-700/50 rounded text-xs">
+                        ${area.key} <span class="text-red-400">${(area.mistakeRate * 100).toFixed(0)}%</span>
+                    </span>`;
+                });
+                html += '</div></div>';
+            }
+
+            content.innerHTML = html;
+        }
+
         // ============ SETTINGS PERSISTENCE ============
         function saveAllSettings() {
             const settings = {
@@ -10206,6 +10823,11 @@
                     voicing: document.getElementById('tritone_voicingSelect').value,
                     rounds: document.getElementById('tritone_roundsSelect').value,
                     showHints: document.getElementById('tritone_showHints').checked
+                },
+                shell: {
+                    chordType: document.getElementById('shell_chordTypeSelect').value,
+                    rounds: document.getElementById('shell_roundsSelect').value,
+                    showHints: document.getElementById('shell_showHints').checked
                 }
             };
             localStorage.setItem('pianoTutorSettings', JSON.stringify(settings));
@@ -10333,6 +10955,13 @@
                     if (settings.tritone.rounds) document.getElementById('tritone_roundsSelect').value = settings.tritone.rounds;
                     if (settings.tritone.showHints !== undefined) document.getElementById('tritone_showHints').checked = settings.tritone.showHints;
                 }
+
+                // Shell Voicings
+                if (settings.shell) {
+                    if (settings.shell.chordType) document.getElementById('shell_chordTypeSelect').value = settings.shell.chordType;
+                    if (settings.shell.rounds) document.getElementById('shell_roundsSelect').value = settings.shell.rounds;
+                    if (settings.shell.showHints !== undefined) document.getElementById('shell_showHints').checked = settings.shell.showHints;
+                }
             } catch (e) {
                 console.error('Failed to load settings:', e);
             }
@@ -10356,6 +10985,7 @@
         drawPiano('pent_pianoSvg');
         drawPiano('bebop_pianoSvg');
         drawPiano('tritone_pianoSvg');
+        drawPiano('shell_pianoSvg');
         initMIDI();
         intLoadHistory();
         chLoadHistory();
@@ -10381,6 +11011,7 @@
         pentLoadHistory();
         bebopLoadHistory();
         tritoneLoadHistory();
+        shellLoadHistory();
         loadAllSettings();
         document.getElementById('jtou_voicingSelect').addEventListener('change', function() {
             const hint = document.getElementById('jtou_settingsHint');

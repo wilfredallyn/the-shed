@@ -130,13 +130,49 @@ Each game should follow the established pattern:
 
 ---
 
+## Ear Training / Theory Games
+
+These focus on recognizing relationships between notes.
+
+### Root Movement Drill
+- **Description:** Practice hearing and playing just the roots of progressions
+- **Concept:** The bass line IS a melody - practice it as such
+- **Example:** Play D → G → C for ii-V-I, then try in all 12 keys
+- **Why:** Internalizes the sound of common root movements (down a 5th, up a 4th)
+- **Source:** Peter Martin emphasizes this as foundational before adding voicings
+- **Implementation idea:** Show progression, player plays just the roots with correct timing
+
+### Melody/Bass Interval Identification
+- **Description:** Given a bass note and melody note, identify the interval
+- **Concept:** Quick recognition of "what scale degree is the melody relative to the bass?"
+- **Examples:**
+  - Bass: C, Melody: E → "Major 3rd" or "3rd"
+  - Bass: G, Melody: F → "Minor 7th" or "b7"
+- **Why:** Essential for reading lead sheets, understanding chord/melody relationships
+- **Source:** Peter Martin's "root, shell, pretty, melody" framework
+- **Implementation ideas:**
+  - Random bass + melody notes, identify the interval
+  - Could show chord symbol and melody note, ask "what chord tone is this?"
+  - Practice recognizing guide tones (3rds and 7ths) vs extensions (9ths, 11ths, 13ths)
+
+### Guide Tone Line Practice
+- **Description:** Play just the 3rds and 7ths through a progression
+- **Concept:** Guide tones define the harmony and voice-lead smoothly
+- **Example:** Through ii-V-I: F-C → F-B → E-B (for Dm7-G7-Cmaj7)
+- **Why:** Builds awareness of how 7ths resolve to 3rds (and vice versa)
+- **Implementation idea:** Show progression, player plays only 3-7 of each chord
+
+---
+
 ## Priority / Interest Level
 
 Games we're most likely to build next:
-1. Shell Voicings (fundamental, simpler)
+1. ~~Shell Voicings~~ **IMPLEMENTED** (Mode 17)
 2. Rootless Type A/B (natural progression from Dom7 Voicing)
 3. So What Voicing (iconic, distinct sound)
-4. Tritone Subs (mental exercise + voicing)
+4. ~~Tritone Subs~~ **IMPLEMENTED** (Mode 16)
+5. Root Movement Drill (foundational ear training)
+6. Guide Tone Lines (voice-leading awareness)
 
 ---
 

@@ -7,7 +7,7 @@ A web-based interactive training app for learning jazz piano fundamentals. Pract
 ## Features
 
 - **MIDI keyboard support** - Connect any MIDI keyboard for real-time practice
-- **16 practice modes** - Progressive curriculum from basics to advanced voicings
+- **17 practice modes** - Progressive curriculum from basics to advanced voicings
 - **Performance tracking** - Stats, response times, and problem area identification
 - **No installation required** - Runs entirely in the browser
 
@@ -44,6 +44,9 @@ A web-based interactive training app for learning jazz piano fundamentals. Pract
 
 ### Reharmonization
 16. **Tritone Sub** - Replace V7 with bII7 (e.g., G7 → Db7)
+
+### Comping Fundamentals
+17. **Shell Voicings** - Root + 3rd + 7th - the essential chord tones for comping
 
 ## Getting Started
 
