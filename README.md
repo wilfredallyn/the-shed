@@ -6,6 +6,8 @@ A web-based jazz piano practice app. Connect your MIDI keyboard and work through
 
 **Try it:** https://deekay.github.io/the-shed/
 
+![The Shed - Jazz Piano Practice App](screenshot.png)
+
 ## Features
 
 - **MIDI keyboard support** — Connect any MIDI controller for hands-on practice
