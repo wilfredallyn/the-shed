@@ -1,73 +1,87 @@
-# Jazz Piano Tutor
+# The Shed
 
-A web-based interactive training app for learning jazz piano fundamentals. Practice intervals, chords, voicings, and common progressions from your MIDI keyboard with real-time feedback on your computer.
+A web-based jazz piano practice app. Connect your MIDI keyboard and work through voicings, progressions, and scales with real-time feedback.
 
-**Full app:** https://deekay.github.io/piano-tutor/
+*"Woodshedding" — jazz slang for focused, dedicated practice. This is your shed.*
+
+**Try it:** https://deekay.github.io/the-shed/
 
 ## Features
 
-- **MIDI keyboard support** - Connect any MIDI keyboard for real-time practice
-- **17 practice modes** - Progressive curriculum from basics to advanced voicings
-- **Performance tracking** - Stats, response times, and problem area identification
-- **No installation required** - Runs entirely in the browser
+- **MIDI keyboard support** — Connect any MIDI controller for hands-on practice
+- **20 training modes** — Progressive curriculum from intervals to advanced voicings
+- **Chart practice** — Play through real tunes with optimal voice leading
+- **Performance tracking** — Response times, accuracy stats, problem area identification
+- **Browser-based** — No installation, runs entirely in Chrome/Edge
 
-## Practice Modes
+## Training Modes
 
 ### Foundations
-1. **Intervals** - Identify and play intervals (half steps through octaves)
-2. **7th Chords** - maj7, min7, and dom7 chord recognition
+1. **Intervals** — Half steps through octaves
+2. **7th Chords** — maj7, min7, dom7
 
 ### Progressions
-3. **ii-V-I** - The essential jazz progression in all 12 keys
-4. **Minor ii-V-i** - The minor key progression (iiø7 - V7 - imM7)
+3. **ii-V-I** — The essential jazz progression in all 12 keys
+4. **Minor ii-V-i** — iiø7 → V7alt → im(maj7)
 
 ### Voicings
-5. **Rootless** - Type A/B voicings (3-5-7-9 and 7-9-3-5) for all chord types
-6. **6/9 Voicings** - Maj6/9, Min6/9, and Dom13 voicings
-7. **Rootless ii-V-I** - Voice-led progressions with Type A → Type B → Type A
+5. **Rootless** — Type A (3-5-7-9) and Type B (7-9-3-5)
+6. **6/9 Voicings** — Maj6/9, Min6/9, Dom13
+7. **Rootless ii-V-I** — Voice-led A→B→A progressions
 
 ### Color Tones
-8. **Add 9/11/13** - Add 9ths, 11ths, and 13ths to your chords
-9. **Altered** - Practice altered tensions (b9, #9, #11, b13)
+8. **Add 9/11/13** — Extensions on any chord
+9. **Altered** — b9, #9, #11, b13 tensions
 
 ### Advanced
-10. **Advanced Chords** - Half-diminished, diminished, minor-major 7th
-11. **Kenny Barron Voicing** - Stacked 5ths two-hand voicing technique
+10. **Advanced Chords** — Half-dim, dim, min(maj7)
+11. **Kenny Barron** — Stacked 5ths voicing
 
 ### Repertoire
-12. **JTOU** - The "Just the Two of Us" progression
+12. **JTOU** — "Just the Two of Us" progression
 
 ### Scales
-13. **Jazz Scales** - Scales that work over each chord type
-14. **Pentatonic** - Minor pentatonic, major pentatonic, and blues scales
-15. **Bebop** - Bebop dominant and bebop major scales (8-note scales)
+13. **Jazz Scales** — Lydian, Dorian, Lydian Dominant
+14. **Pentatonic** — Minor, major, and blues scales
+15. **Bebop** — 8-note bebop dominant and major scales
 
 ### Reharmonization
-16. **Tritone Sub** - Replace V7 with bII7 (e.g., G7 → Db7)
+16. **Tritone Sub** — Replace V7 with bII7
 
-### Comping Fundamentals
-17. **Shell Voicings** - Root + 3rd + 7th - the essential chord tones for comping
+### Comping
+17. **Shell Voicings** — Root + 3rd + 7th fundamentals
+18. **Upper Structures** — Triads over dominant bass for altered sounds
+19. **Freestyle** — Any valid voicing, just hit the guide tones
+
+### Voice Leading
+20. **Voice Leading Trainer** — Find common tones and smooth resolutions
+
+## Charts
+
+Practice real tunes with computed optimal voice leading:
+
+- **All The Things You Are** — 36-bar AABA form with rootless or shell voicings
 
 ## Getting Started
 
-1. Open the app in a modern browser (Chrome recommended for MIDI support)
+1. Open in **Chrome** or **Edge** (Safari/Firefox don't support WebMIDI)
 2. Connect your MIDI keyboard
-3. Select your MIDI device from the dropdown
-4. Choose a practice mode and start playing
+3. Select your device from the dropdown
+4. Pick a mode and start practicing
 
 ## Running Locally
 
-Just open `index.html` in your browser. No build process or server required.
+Just open `index.html` — no build process or server required.
 
 ## Requirements
 
-- A modern web browser with Web MIDI API support
-- A MIDI keyboard (or use on-screen keyboard for testing)
+- Chrome, Edge, or another Chromium-based browser
+- A MIDI keyboard
 
 ## Feedback
 
-Have suggestions or found a bug? DM me on Twitter/X: [@dksf](https://twitter.com/dksf)
+DM [@dksf](https://twitter.com/dksf) on Twitter/X
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
+MIT — see [LICENSE](LICENSE)
