@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Session Logging Tests</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #1a1a2e;
+            color: #eee;
+        }
+        h1 { color: #4ade80; }
+        h2 { color: #60a5fa; margin-top: 30px; }
+        .test {
+            padding: 8px 12px;
+            margin: 4px 0;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        .pass { background: #166534; }
+        .fail { background: #991b1b; }
+        .summary {
+            margin-top: 30px;
+            padding: 20px;
+            background: #16213e;
+            border-radius: 8px;
+        }
+        .summary.all-pass { border: 2px solid #4ade80; }
+        .summary.has-fails { border: 2px solid #f87171; }
+        pre {
+            background: #0f0f1a;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+        .instructions {
+            background: #1e3a5f;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Session Logging Tests</h1>
+
+    <div class="instructions">
+        <strong>How to use:</strong> Just open this file in your browser.
+        It automatically loads <code>session-logging.js</code> and runs all tests.
+    </div>
+
+    <div id="results"></div>
+    <div id="summary" class="summary"></div>
+
+    <!-- Load the session logging code -->
+    <script src="session-logging.js"></script>
+
+    <script>
+        // Simple test framework
+        const results = [];
+
+        function test(name, fn) {
+            try {
+                fn();
+                results.push({ name, status: 'pass' });
+            } catch (e) {
+                results.push({ name, status: 'fail', error: e.message });
+            }
+        }
+
+        function assert(condition, message) {
+            if (!condition) throw new Error(message || 'Assertion failed');
+        }
+
+        function assertEqual(actual, expected, message) {
+            if (actual !== expected) {
+                throw new Error(message || `Expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+            }
+        }
+
+        function assertType(value, type, message) {
+            if (typeof value !== type) {
+                throw new Error(message || `Expected type ${type}, got ${typeof value}`);
+            }
+        }
+
+        // Reset state before tests
+        localStorage.removeItem('sessionLogData');
+        sessionLogEnabled = false;
+        sessionLogSessions = [];
+        currentSessionLog = null;
+        currentRoundLog = null;
+
+        // ==================== TESTS ====================
+
+        test('Global variables exist', () => {
+            assertType(sessionLogEnabled, 'boolean', 'sessionLogEnabled should be boolean');
+            assert(Array.isArray(sessionLogSessions), 'sessionLogSessions should be array');
+        });
+
+        test('Functions exist', () => {
+            assertType(sessionLogStartSession, 'function');
+            assertType(sessionLogStartRound, 'function');
+            assertType(sessionLogRecordEvent, 'function');
+            assertType(sessionLogEndRound, 'function');
+            assertType(sessionLogEndSession, 'function');
+            assertType(sessionLogNormalizeChallenge, 'function');
+        });
+
+        test('sessionLogStartSession creates session object', () => {
+            sessionLogEnabled = true;
+            sessionLogStartSession('chords', { rounds: 12, type: 'major' });
+
+            assert(currentSessionLog !== null, 'currentSessionLog should exist');
+            assertEqual(currentSessionLog.mode, 'chords');
+            assertEqual(currentSessionLog.config.rounds, 12);
+            assert(currentSessionLog.startTime > 0, 'startTime should be set');
+            assert(Array.isArray(currentSessionLog.rounds), 'rounds should be array');
+        });
+
+        test('sessionLogStartRound creates round object', () => {
+            sessionLogEnabled = true;
+            currentSessionLog = { mode: 'chords', rounds: [], startTime: Date.now() };
+
+            sessionLogStartRound({ prompt: 'C Major', expectedMidi: [60, 64, 67] });
+
+            assert(currentRoundLog !== null, 'currentRoundLog should exist');
+            assertEqual(currentRoundLog.challenge.prompt, 'C Major');
+            assert(Array.isArray(currentRoundLog.events), 'events should be array');
+        });
+
+        test('sessionLogRecordEvent adds events with timing', () => {
+            sessionLogEnabled = true;
+            currentSessionLog = { mode: 'chords', rounds: [], startTime: Date.now() };
+            currentRoundLog = {
+                challenge: { prompt: 'C', expectedPitchClasses: [0, 4, 7] },
+                events: [],
+                startTime: Date.now()
+            };
+
+            sessionLogRecordEvent('noteOn', 60, 100);
+            sessionLogRecordEvent('noteOn', 64, 90);
+
+            assertEqual(currentRoundLog.events.length, 2);
+            assertEqual(currentRoundLog.events[0].type, 'noteOn');
+            assertEqual(currentRoundLog.events[0].midi, 60);
+            assertEqual(currentRoundLog.events[0].velocity, 100);
+            assert(currentRoundLog.events[0].offsetMs >= 0, 'offsetMs should be non-negative');
+        });
+
+        test('sessionLogRecordEvent marks correct notes', () => {
+            sessionLogEnabled = true;
+            currentSessionLog = { mode: 'chords', rounds: [], startTime: Date.now() };
+            currentRoundLog = {
+                challenge: { prompt: 'C', expectedPitchClasses: [0, 4, 7] },
+                events: [],
+                startTime: Date.now()
+            };
+
+            sessionLogRecordEvent('noteOn', 60, 100);  // C (pitch class 0) - correct
+            sessionLogRecordEvent('noteOn', 61, 100);  // C# (pitch class 1) - wrong
+
+            assertEqual(currentRoundLog.events[0].isCorrect, true, 'C should be correct');
+            assertEqual(currentRoundLog.events[1].isCorrect, false, 'C# should be incorrect');
+        });
+
+        test('sessionLogEndRound closes round with results', () => {
+            sessionLogEnabled = true;
+            currentSessionLog = { mode: 'chords', rounds: [], startTime: Date.now() };
+            currentRoundLog = {
+                challenge: { prompt: 'C', expectedPitchClasses: [0, 4, 7] },
+                events: [{ type: 'noteOn', midi: 60 }],
+                startTime: Date.now() - 1500
+            };
+
+            sessionLogEndRound({ correct: true, mistakes: 0 });
+
+            assertEqual(currentSessionLog.rounds.length, 1);
+            assertEqual(currentSessionLog.rounds[0].result.correct, true);
+            assert(currentSessionLog.rounds[0].responseMs > 0, 'responseMs should be set');
+            assert(currentRoundLog === null, 'currentRoundLog should be cleared');
+        });
+
+        test('sessionLogEndSession saves to storage', () => {
+            localStorage.removeItem('sessionLogData');
+            sessionLogEnabled = true;
+            sessionLogSessions = [];
+            currentSessionLog = {
+                mode: 'chords',
+                rounds: [{ challenge: {}, events: [], result: { correct: true } }],
+                startTime: Date.now() - 5000,
+                config: { rounds: 12 }
+            };
+
+            sessionLogEndSession({ avgTime: 1500, firstTryPct: 100 });
+
+            assertEqual(sessionLogSessions.length, 1);
+            assertEqual(sessionLogSessions[0].summary.avgTime, 1500);
+
+            const stored = JSON.parse(localStorage.getItem('sessionLogData'));
+            assert(stored !== null, 'Data should be in localStorage');
+            assertEqual(stored.sessions.length, 1);
+        });
+
+        test('sessionLogNormalizeChallenge handles chord format', () => {
+            const result = sessionLogNormalizeChallenge('chords', {
+                name: 'C Major 7',
+                notes: [60, 64, 67, 71]
+            });
+
+            assertEqual(result.prompt, 'C Major 7');
+            assert(Array.isArray(result.expectedPitchClasses), 'should have pitch classes');
+        });
+
+        test('sessionLogNormalizeChallenge handles interval format', () => {
+            const result = sessionLogNormalizeChallenge('intervals', {
+                name: 'Major 3rd',
+                rootNote: 60,
+                targetNote: 64
+            });
+
+            assert(result.prompt.includes('Major 3rd') || result.prompt.includes('3rd'), 'prompt should include interval');
+        });
+
+        test('sessionLogNormalizeChallenge handles scale format', () => {
+            const result = sessionLogNormalizeChallenge('scales', {
+                name: 'C Dorian',
+                notes: [60, 62, 63, 65, 67, 69, 70, 72]
+            });
+
+            assertEqual(result.prompt, 'C Dorian');
+            assert(result.expectedPitchClasses.length > 0, 'should have pitch classes');
+        });
+
+        test('Logging disabled does nothing', () => {
+            sessionLogEnabled = false;
+            sessionLogSessions = [];
+            currentSessionLog = null;
+
+            sessionLogStartSession('chords', {});
+
+            assert(currentSessionLog === null, 'Should not create session when disabled');
+        });
+
+        test('Events not recorded when no active round', () => {
+            sessionLogEnabled = true;
+            currentSessionLog = { mode: 'test', rounds: [] };
+            currentRoundLog = null;
+
+            // Should not throw
+            sessionLogRecordEvent('noteOn', 60, 100);
+
+            // No crash = pass
+            assert(true);
+        });
+
+        test('Session storage limit enforced', () => {
+            localStorage.removeItem('sessionLogData');
+            sessionLogEnabled = true;
+            sessionLogSessions = [];
+
+            // Create 105 sessions (over 100 limit)
+            for (let i = 0; i < 105; i++) {
+                sessionLogSessions.push({
+                    id: `test-${i}`,
+                    mode: 'test',
+                    rounds: [],
+                    startTime: Date.now(),
+                    endTime: Date.now(),
+                    summary: {}
+                });
+            }
+
+            sessionLogSave();
+            sessionLogLoad();
+
+            assert(sessionLogSessions.length <= 100, `Should have max 100 sessions, got ${sessionLogSessions.length}`);
+        });
+
+        test('Full session workflow', () => {
+            localStorage.removeItem('sessionLogData');
+            sessionLogEnabled = true;
+            sessionLogSessions = [];
+            currentSessionLog = null;
+            currentRoundLog = null;
+
+            // Start session
+            sessionLogStartSession('chords', { rounds: 2 });
+            assert(currentSessionLog !== null);
+
+            // Round 1
+            sessionLogStartRound({ prompt: 'C Major', expectedMidi: [60, 64, 67] });
+            sessionLogRecordEvent('noteOn', 60, 100);
+            sessionLogRecordEvent('noteOn', 64, 100);
+            sessionLogRecordEvent('noteOn', 67, 100);
+            sessionLogEndRound({ correct: true, mistakes: 0 });
+
+            // Round 2
+            sessionLogStartRound({ prompt: 'G Major', expectedMidi: [55, 59, 62] });
+            sessionLogRecordEvent('noteOn', 55, 100);
+            sessionLogRecordEvent('noteOn', 58, 100);  // Wrong note!
+            sessionLogRecordEvent('noteOn', 59, 100);
+            sessionLogRecordEvent('noteOn', 62, 100);
+            sessionLogEndRound({ correct: true, mistakes: 1 });
+
+            // End session
+            sessionLogEndSession({ avgTime: 2000, firstTryPct: 50 });
+
+            // Verify
+            assertEqual(sessionLogSessions.length, 1);
+            assertEqual(sessionLogSessions[0].rounds.length, 2);
+            assertEqual(sessionLogSessions[0].rounds[0].events.length, 3);
+            assertEqual(sessionLogSessions[0].rounds[1].events.length, 4);
+
+            // Check wrong note was flagged
+            const round2Events = sessionLogSessions[0].rounds[1].events;
+            const wrongNote = round2Events.find(e => e.midi === 58);
+            assertEqual(wrongNote.isCorrect, false, 'Wrong note should be flagged');
+        });
+
+        // ==================== DISPLAY RESULTS ====================
+
+        const resultsDiv = document.getElementById('results');
+        const summaryDiv = document.getElementById('summary');
+
+        let passCount = 0;
+        let failCount = 0;
+
+        results.forEach(r => {
+            const div = document.createElement('div');
+            div.className = `test ${r.status}`;
+
+            if (r.status === 'pass') {
+                div.textContent = `✓ ${r.name}`;
+                passCount++;
+            } else {
+                div.innerHTML = `✗ ${r.name}<br><small style="opacity:0.8">${r.error}</small>`;
+                failCount++;
+            }
+
+            resultsDiv.appendChild(div);
+        });
+
+        summaryDiv.className = `summary ${failCount === 0 ? 'all-pass' : 'has-fails'}`;
+        summaryDiv.innerHTML = `
+            <h2 style="margin-top:0">Summary</h2>
+            <p><strong>${passCount}</strong> passed, <strong>${failCount}</strong> failed</p>
+            ${failCount === 0
+                ? '<p style="color:#4ade80">All tests passing! ✓</p>'
+                : '<p style="color:#f87171">Some tests failed. Check the errors above.</p>'}
+        `;
+    </script>
+</body>
+</html>
