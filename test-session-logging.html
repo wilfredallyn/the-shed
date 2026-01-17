@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Session Logging Tests</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #1a1a2e;
+            color: #eee;
+        }
+        h1 { color: #4ade80; }
+        h2 { color: #60a5fa; margin-top: 30px; }
+        .test {
+            padding: 8px 12px;
+            margin: 4px 0;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        .pass { background: #166534; }
+        .fail { background: #991b1b; }
+        .error { background: #7c2d12; }
+        .summary {
+            margin-top: 30px;
+            padding: 20px;
+            background: #16213e;
+            border-radius: 8px;
+        }
+        .summary.all-pass { border: 2px solid #4ade80; }
+        .summary.has-fails { border: 2px solid #f87171; }
+        pre {
+            background: #0f0f1a;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Session Logging Tests</h1>
+    <p>Tests for session logging core infrastructure (TDD - all should fail until implemented)</p>
+
+    <div id="results"></div>
+    <div id="summary" class="summary"></div>
+
+    <script>
+        // Simple test framework
+        const results = [];
+
+        function test(name, fn) {
+            try {
+                fn();
+                results.push({ name, status: 'pass' });
+            } catch (e) {
+                results.push({ name, status: 'fail', error: e.message });
+            }
+        }
+
+        function assert(condition, message) {
+            if (!condition) {
+                throw new Error(message || 'Assertion failed');
+            }
+        }
+
+        function assertEqual(actual, expected, message) {
+            if (actual !== expected) {
+                throw new Error(message || `Expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+            }
+        }
+
+        function assertDeepEqual(actual, expected, message) {
+            if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+                throw new Error(message || `Expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+            }
+        }
+
+        function assertType(value, type, message) {
+            if (typeof value !== type) {
+                throw new Error(message || `Expected type ${type}, got ${typeof value}`);
+            }
+        }
+
+        function assertArray(value, message) {
+            if (!Array.isArray(value)) {
+                throw new Error(message || `Expected array, got ${typeof value}`);
+            }
+        }
+
+        // Clear localStorage before tests
+        localStorage.removeItem('sessionLogSessions');
+
+        // ==================== TESTS ====================
+
+        // Test 1: Global variables exist
+        test('Global state variables exist', () => {
+            assertType(sessionLogEnabled, 'boolean', 'sessionLogEnabled should be a boolean');
+            assertArray(sessionLogSessions, 'sessionLogSessions should be an array');
+            // currentSessionLog can be null initially
+            assert(currentSessionLog === null || typeof currentSessionLog === 'object',
+                'currentSessionLog should be null or object');
+        });
+
+        // Test 2: sessionLogStartSession returns proper session object
+        test('sessionLogStartSession returns session with id, mode, config, startTime', () => {
+            assertType(sessionLogStartSession, 'function', 'sessionLogStartSession should be a function');
+
+            const session = sessionLogStartSession('intervals', { totalRounds: 6 });
+
+            assert(session !== null, 'Should return session object');
+            assertType(session.id, 'string', 'Session should have string id');
+            assertEqual(session.mode, 'intervals', 'Session mode should match');
+            assertDeepEqual(session.config, { totalRounds: 6 }, 'Session config should match');
+            assertType(session.startTime, 'string', 'Session should have startTime');
+            assertEqual(session.endTime, null, 'Session endTime should be null initially');
+            assertArray(session.rounds, 'Session should have rounds array');
+            assertEqual(session.summary, null, 'Session summary should be null initially');
+        });
+
+        // Test 3: sessionLogStartSession with no config
+        test('sessionLogStartSession handles missing config gracefully', () => {
+            const session = sessionLogStartSession('chords');
+
+            assert(session !== null, 'Should return session object');
+            assertDeepEqual(session.config, {}, 'Config should default to empty object');
+        });
+
+        // Test 4: sessionLogStartRound creates round with expectedPitchClasses (interval)
+        test('sessionLogStartRound creates round from interval challenge', () => {
+            assertType(sessionLogStartRound, 'function', 'sessionLogStartRound should be a function');
+
+            sessionLogStartSession('intervals', {});
+            const round = sessionLogStartRound({ targetMidi: 64 });
+
+            assert(round !== null, 'Should return round object');
+            assertEqual(round.roundNumber, 1, 'Round number should be 1');
+            assertType(round.startTime, 'string', 'Round should have startTime');
+            assertDeepEqual(round.expectedPitchClasses, [4], 'Expected pitch class for midi 64 is 4');
+            assertArray(round.events, 'Round should have events array');
+            assertEqual(round.result, null, 'Round result should be null initially');
+        });
+
+        // Test 5: sessionLogStartRound handles chord challenge with Set
+        test('sessionLogStartRound handles chord challenge with requiredPitchClasses Set', () => {
+            sessionLogStartSession('chords', {});
+            const challenge = {
+                root: 0,
+                type: 'maj7',
+                requiredPitchClasses: new Set([0, 4, 7, 11])
+            };
+            const round = sessionLogStartRound(challenge);
+
+            assert(round !== null, 'Should return round object');
+            // expectedPitchClasses should be extracted from the Set
+            assertArray(round.expectedPitchClasses, 'expectedPitchClasses should be array');
+            assert(round.expectedPitchClasses.includes(0), 'Should include pitch class 0');
+            assert(round.expectedPitchClasses.includes(4), 'Should include pitch class 4');
+            assert(round.expectedPitchClasses.includes(7), 'Should include pitch class 7');
+            assert(round.expectedPitchClasses.includes(11), 'Should include pitch class 11');
+        });
+
+        // Test 6: sessionLogRecordEvent appends event with offsetMs
+        test('sessionLogRecordEvent appends event with offsetMs', () => {
+            assertType(sessionLogRecordEvent, 'function', 'sessionLogRecordEvent should be a function');
+
+            sessionLogStartSession('intervals', {});
+            sessionLogStartRound({ targetMidi: 60 });
+
+            // Small delay to ensure offsetMs > 0
+            const startTime = Date.now();
+            sessionLogRecordEvent('noteOn', 60, 100);
+
+            // Get the current round from currentSessionLog or currentRoundLog
+            const event = currentRoundLog.events[0];
+
+            assert(event !== undefined, 'Event should be recorded');
+            assertEqual(event.type, 'noteOn', 'Event type should be noteOn');
+            assertEqual(event.midi, 60, 'Event midi should be 60');
+            assertEqual(event.pitchClass, 0, 'Pitch class of midi 60 is 0');
+            assertEqual(event.velocity, 100, 'Velocity should be 100');
+            assertType(event.offsetMs, 'number', 'offsetMs should be a number');
+            assert(event.offsetMs >= 0, 'offsetMs should be non-negative');
+        });
+
+        // Test 7: sessionLogRecordEvent handles default velocity
+        test('sessionLogRecordEvent handles missing velocity', () => {
+            sessionLogStartSession('intervals', {});
+            sessionLogStartRound({ targetMidi: 60 });
+            sessionLogRecordEvent('noteOff', 60);
+
+            const event = currentRoundLog.events[0];
+            assertEqual(event.velocity, 0, 'Missing velocity should default to 0');
+        });
+
+        // Test 8: sessionLogEndRound closes round with result
+        test('sessionLogEndRound closes round with result data', () => {
+            assertType(sessionLogEndRound, 'function', 'sessionLogEndRound should be a function');
+
+            sessionLogStartSession('intervals', {});
+            sessionLogStartRound({ targetMidi: 60 });
+            sessionLogRecordEvent('noteOn', 60, 100);
+
+            const completedRound = sessionLogEndRound({
+                correct: true,
+                responseTime: 1.5,
+                mistakes: 0,
+                slow: false
+            });
+
+            assert(completedRound !== null, 'Should return completed round');
+            assert(completedRound.result !== null, 'Result should be set');
+            assertEqual(completedRound.result.correct, true, 'correct should be true');
+            assertEqual(completedRound.result.responseTimeMs, 1500, 'responseTime 1.5s = 1500ms');
+            assertEqual(completedRound.result.mistakes, 0, 'mistakes should be 0');
+            assertEqual(completedRound.result.slow, false, 'slow should be false');
+
+            // Round should be added to session
+            assertEqual(currentSessionLog.rounds.length, 1, 'Session should have 1 round');
+        });
+
+        // Test 9: sessionLogEndSession saves to localStorage
+        test('sessionLogEndSession saves session to localStorage', () => {
+            assertType(sessionLogEndSession, 'function', 'sessionLogEndSession should be a function');
+
+            localStorage.removeItem('sessionLogSessions'); // Clear first
+            sessionLogSessions = []; // Reset in-memory
+
+            sessionLogStartSession('intervals', { totalRounds: 1 });
+            sessionLogStartRound({ targetMidi: 60 });
+            sessionLogEndRound({ correct: true, responseTime: 1.0, mistakes: 0 });
+
+            const completedSession = sessionLogEndSession({
+                correctRounds: 1,
+                firstTryPct: 100,
+                totalMistakes: 0,
+                avgResponseTimeMs: 1000,
+                slowCount: 0
+            });
+
+            assert(completedSession !== null, 'Should return completed session');
+            assertType(completedSession.endTime, 'string', 'Session should have endTime');
+            assert(completedSession.summary !== null, 'Session should have summary');
+            assertEqual(completedSession.summary.totalRounds, 1, 'Summary totalRounds');
+            assertEqual(completedSession.summary.firstTryPct, 100, 'Summary firstTryPct');
+
+            // Check localStorage
+            const saved = localStorage.getItem('sessionLogSessions');
+            assert(saved !== null, 'Should save to localStorage');
+            const parsed = JSON.parse(saved);
+            assertArray(parsed, 'Saved data should be array');
+            assertEqual(parsed.length, 1, 'Should have 1 session');
+        });
+
+        // Test 10: sessionLogLoad recovers sessions from localStorage
+        test('sessionLogLoad recovers sessions from localStorage', () => {
+            assertType(sessionLogLoad, 'function', 'sessionLogLoad should be a function');
+
+            // Pre-populate localStorage
+            const testData = [{
+                id: 'test123',
+                mode: 'test',
+                config: {},
+                startTime: '2026-01-17T00:00:00Z',
+                endTime: '2026-01-17T00:01:00Z',
+                rounds: [],
+                summary: { totalRounds: 0 }
+            }];
+            localStorage.setItem('sessionLogSessions', JSON.stringify(testData));
+
+            sessionLogSessions = []; // Clear in-memory
+            sessionLogLoad();
+
+            assertEqual(sessionLogSessions.length, 1, 'Should load 1 session');
+            assertEqual(sessionLogSessions[0].id, 'test123', 'Should recover session id');
+        });
+
+        // Test 11: Session limit (100 max)
+        test('sessionLogEndSession enforces 100 session limit', () => {
+            localStorage.removeItem('sessionLogSessions');
+            sessionLogSessions = [];
+
+            // Create 100 fake sessions
+            for (let i = 0; i < 100; i++) {
+                sessionLogSessions.push({ id: `old_${i}`, mode: 'test' });
+            }
+
+            // Add one more via normal flow
+            sessionLogStartSession('new', {});
+            sessionLogEndSession({ correctRounds: 0 });
+
+            assert(sessionLogSessions.length <= 100, 'Should not exceed 100 sessions');
+            assertEqual(sessionLogSessions[0].mode, 'new', 'Newest session should be first');
+        });
+
+        // Test 12: sessionLogNormalizeChallenge handles interval challenge
+        test('sessionLogNormalizeChallenge handles interval challenge', () => {
+            assertType(sessionLogNormalizeChallenge, 'function',
+                'sessionLogNormalizeChallenge should be a function');
+
+            const challenge = {
+                startMidi: 60,
+                targetMidi: 64,
+                interval: 4,
+                direction: 'up'
+            };
+
+            const normalized = sessionLogNormalizeChallenge(challenge);
+
+            assertEqual(normalized.type, 'interval', 'Type should be interval');
+            assertEqual(normalized.startMidi, 60, 'startMidi should be preserved');
+            assertEqual(normalized.targetMidi, 64, 'targetMidi should be preserved');
+            assertEqual(normalized.interval, 4, 'interval should be preserved');
+            assertEqual(normalized.direction, 'up', 'direction should be preserved');
+        });
+
+        // Test 13: sessionLogNormalizeChallenge handles chord with Set
+        test('sessionLogNormalizeChallenge converts Set to Array for chord', () => {
+            const challenge = {
+                root: 0,
+                type: 'maj7',
+                name: 'Cmaj7',
+                requiredPitchClasses: new Set([0, 4, 7, 11])
+            };
+
+            const normalized = sessionLogNormalizeChallenge(challenge);
+
+            assertEqual(normalized.type, 'chord', 'Type should be chord');
+            assertArray(normalized.requiredPitchClasses,
+                'requiredPitchClasses should be converted to array');
+            assertEqual(normalized.requiredPitchClasses.length, 4, 'Should have 4 pitch classes');
+        });
+
+        // Test 14: sessionLogExtractExpectedPitchClasses for targetMidi
+        test('sessionLogExtractExpectedPitchClasses extracts from targetMidi', () => {
+            assertType(sessionLogExtractExpectedPitchClasses, 'function',
+                'sessionLogExtractExpectedPitchClasses should be a function');
+
+            const result = sessionLogExtractExpectedPitchClasses({ targetMidi: 64 });
+
+            assertArray(result, 'Should return array');
+            assertDeepEqual(result, [4], 'Midi 64 % 12 = 4');
+        });
+
+        // Test 15: sessionLogExtractExpectedPitchClasses for requiredPitchClasses Set
+        test('sessionLogExtractExpectedPitchClasses extracts from Set', () => {
+            const result = sessionLogExtractExpectedPitchClasses({
+                requiredPitchClasses: new Set([0, 4, 7])
+            });
+
+            assertArray(result, 'Should return array');
+            assertEqual(result.length, 3, 'Should have 3 elements');
+            assert(result.includes(0), 'Should include 0');
+            assert(result.includes(4), 'Should include 4');
+            assert(result.includes(7), 'Should include 7');
+        });
+
+        // Test 16: Disabled state - functions no-op
+        test('Functions no-op when sessionLogEnabled is false', () => {
+            sessionLogEnabled = false;
+            localStorage.removeItem('sessionLogSessions');
+            sessionLogSessions = [];
+
+            const session = sessionLogStartSession('test', {});
+            assertEqual(session, null, 'Should return null when disabled');
+
+            const round = sessionLogStartRound({ targetMidi: 60 });
+            assertEqual(round, null, 'Should return null when disabled');
+
+            // Re-enable for remaining tests
+            sessionLogEnabled = true;
+        });
+
+        // Test 17: localStorage parse failure recovery
+        test('sessionLogLoad handles corrupted localStorage gracefully', () => {
+            localStorage.setItem('sessionLogSessions', 'not valid json {{{');
+            sessionLogSessions = ['should be cleared'];
+
+            sessionLogLoad(); // Should not throw
+
+            assertArray(sessionLogSessions, 'Should reset to array');
+            assertEqual(sessionLogSessions.length, 0, 'Should be empty after parse failure');
+
+            // Cleanup
+            localStorage.removeItem('sessionLogSessions');
+        });
+
+        // Test 18: sessionLogNormalizeChallenge handles null
+        test('sessionLogNormalizeChallenge handles null challenge', () => {
+            const result = sessionLogNormalizeChallenge(null);
+            assertEqual(result, null, 'Should return null for null input');
+        });
+
+        // Test 19: sessionLogExtractExpectedPitchClasses handles null
+        test('sessionLogExtractExpectedPitchClasses handles null challenge', () => {
+            const result = sessionLogExtractExpectedPitchClasses(null);
+            assertArray(result, 'Should return array');
+            assertEqual(result.length, 0, 'Should return empty array for null');
+        });
+
+        // Test 20: Full workflow integration
+        test('Full session workflow: start -> rounds -> events -> end', () => {
+            localStorage.removeItem('sessionLogSessions');
+            sessionLogSessions = [];
+            sessionLogEnabled = true;
+
+            // Start session
+            const session = sessionLogStartSession('intervals', { totalRounds: 2 });
+            assert(session !== null, 'Session should start');
+
+            // Round 1
+            sessionLogStartRound({ targetMidi: 60 });
+            sessionLogRecordEvent('noteOn', 60, 100);
+            sessionLogRecordEvent('noteOff', 60, 0);
+            sessionLogEndRound({ correct: true, responseTime: 1.0, mistakes: 0 });
+
+            // Round 2
+            sessionLogStartRound({ targetMidi: 64 });
+            sessionLogRecordEvent('noteOn', 62, 90); // Wrong note
+            sessionLogRecordEvent('noteOn', 64, 100); // Correct
+            sessionLogRecordEvent('noteOff', 62, 0);
+            sessionLogRecordEvent('noteOff', 64, 0);
+            sessionLogEndRound({ correct: true, responseTime: 2.5, mistakes: 1 });
+
+            // End session
+            const completed = sessionLogEndSession({
+                correctRounds: 2,
+                firstTryPct: 50,
+                totalMistakes: 1,
+                avgResponseTimeMs: 1750,
+                slowCount: 1
+            });
+
+            assert(completed !== null, 'Session should complete');
+            assertEqual(completed.rounds.length, 2, 'Should have 2 rounds');
+            assertEqual(completed.rounds[0].events.length, 2, 'Round 1 should have 2 events');
+            assertEqual(completed.rounds[1].events.length, 4, 'Round 2 should have 4 events');
+
+            // Verify persistence
+            const saved = JSON.parse(localStorage.getItem('sessionLogSessions'));
+            assertEqual(saved.length, 1, 'Should have 1 saved session');
+            assertEqual(saved[0].rounds.length, 2, 'Saved session should have 2 rounds');
+        });
+
+        // ==================== RENDER RESULTS ====================
+
+        const resultsDiv = document.getElementById('results');
+        const summaryDiv = document.getElementById('summary');
+
+        let passed = 0;
+        let failed = 0;
+
+        results.forEach(r => {
+            const div = document.createElement('div');
+            div.className = `test ${r.status}`;
+
+            if (r.status === 'pass') {
+                div.textContent = `PASS: ${r.name}`;
+                passed++;
+            } else {
+                div.innerHTML = `FAIL: ${r.name}<pre>${r.error}</pre>`;
+                failed++;
+            }
+
+            resultsDiv.appendChild(div);
+        });
+
+        summaryDiv.className = `summary ${failed === 0 ? 'all-pass' : 'has-fails'}`;
+        summaryDiv.innerHTML = `
+            <h2>Summary</h2>
+            <p><strong>Total:</strong> ${results.length} tests</p>
+            <p><strong>Passed:</strong> ${passed}</p>
+            <p><strong>Failed:</strong> ${failed}</p>
+            <p><strong>Status:</strong> ${failed === 0 ? 'All tests pass' : 'Tests failing (expected for TDD)'}</p>
+        `;
+
+        // Log summary for automated checking
+        console.log(`\n=== TEST RESULTS ===`);
+        console.log(`Total: ${results.length}`);
+        console.log(`Passed: ${passed}`);
+        console.log(`Failed: ${failed}`);
+        results.filter(r => r.status === 'fail').forEach(r => {
+            console.log(`FAIL: ${r.name} - ${r.error}`);
+        });
+    </script>
+</body>
+</html>
