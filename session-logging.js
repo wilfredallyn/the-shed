@@ -1,11 +1,11 @@
 /**
  * Session Logging Infrastructure for Piano Tutor
- * 
+ *
  * This module captures detailed practice data during sessions:
  * - MIDI events with timing
  * - Challenge prompts and expected notes
  * - Correctness and response times
- * 
+ *
  * Usage:
  *   1. Set sessionLogEnabled = true
  *   2. Call sessionLogStartSession(mode, config) when game starts
@@ -13,24 +13,28 @@
  *   4. Call sessionLogRecordEvent(type, midi, velocity) for MIDI events
  *   5. Call sessionLogEndRound(result) when challenge completed
  *   6. Call sessionLogEndSession(summary) when game ends
- * 
+ *
  * Data is stored in localStorage under 'sessionLogData'
  */
 
 // ==================== SESSION LOGGING ====================
 // Global state for session logging
-let sessionLogEnabled = true;
+let sessionLogEnabled = false;
 let sessionLogSessions = [];
 let currentSessionLog = null;
 let currentRoundLog = null;
-let roundStartTime = null;
 
 // Load existing sessions from localStorage
 function sessionLogLoad() {
-    const saved = localStorage.getItem('sessionLogSessions');
+    const saved = localStorage.getItem('sessionLogData');
     if (saved) {
         try {
-            sessionLogSessions = JSON.parse(saved);
+            const data = JSON.parse(saved);
+            sessionLogSessions = data.sessions || [];
+            // Enforce 100 session limit on load
+            if (sessionLogSessions.length > 100) {
+                sessionLogSessions = sessionLogSessions.slice(0, 100);
+            }
         } catch (e) {
             console.warn('Failed to parse session log history:', e);
             sessionLogSessions = [];
@@ -41,7 +45,16 @@ function sessionLogLoad() {
 // Save sessions to localStorage
 function sessionLogSave() {
     try {
-        localStorage.setItem('sessionLogSessions', JSON.stringify(sessionLogSessions));
+        // Enforce 100 session limit before save
+        if (sessionLogSessions.length > 100) {
+            sessionLogSessions = sessionLogSessions.slice(0, 100);
+        }
+        const data = {
+            version: 1,
+            exportDate: new Date().toISOString(),
+            sessions: sessionLogSessions
+        };
+        localStorage.setItem('sessionLogData', JSON.stringify(data));
     } catch (e) {
         console.warn('Failed to save session log:', e);
     }
@@ -55,13 +68,12 @@ function sessionLogStartSession(mode, config) {
         id: Date.now().toString(36) + Math.random().toString(36).substr(2, 5),
         mode: mode,
         config: JSON.parse(JSON.stringify(config || {})),
-        startTime: new Date().toISOString(),
+        startTime: Date.now(),
         endTime: null,
         rounds: [],
         summary: null
     };
     currentRoundLog = null;
-    roundStartTime = null;
 
     return currentSessionLog;
 }
@@ -70,13 +82,15 @@ function sessionLogStartSession(mode, config) {
 function sessionLogStartRound(challenge) {
     if (!sessionLogEnabled || !currentSessionLog) return null;
 
-    roundStartTime = Date.now();
+    // Normalize the challenge and extract expected pitch classes
+    const normalized = sessionLogNormalizeChallenge(currentSessionLog.mode, challenge);
+    const expectedPitchClasses = sessionLogExtractExpectedPitchClasses(currentSessionLog.mode, challenge);
 
     currentRoundLog = {
         roundNumber: currentSessionLog.rounds.length + 1,
-        startTime: new Date().toISOString(),
-        challenge: sessionLogNormalizeChallenge(challenge),
-        expectedPitchClasses: sessionLogExtractExpectedPitchClasses(challenge),
+        startTime: Date.now(),
+        challenge: normalized,
+        expectedPitchClasses: expectedPitchClasses,
         events: [],
         result: null
     };
@@ -86,14 +100,19 @@ function sessionLogStartRound(challenge) {
 
 // Record a MIDI event during the round
 function sessionLogRecordEvent(type, midi, velocity) {
-    if (!sessionLogEnabled || !currentSessionLog || !currentRoundLog || !roundStartTime) return;
+    if (!sessionLogEnabled || !currentSessionLog || !currentRoundLog) return;
+
+    const pitchClass = midi % 12;
+    const expectedPitchClasses = currentRoundLog.expectedPitchClasses || currentRoundLog.challenge?.expectedPitchClasses || [];
+    const isCorrect = expectedPitchClasses.includes(pitchClass);
 
     const event = {
         type: type,  // 'noteOn' or 'noteOff'
         midi: midi,
-        pitchClass: midi % 12,
+        pitchClass: pitchClass,
         velocity: velocity || 0,
-        offsetMs: Date.now() - roundStartTime
+        offsetMs: Date.now() - currentRoundLog.startTime,
+        isCorrect: isCorrect
     };
 
     currentRoundLog.events.push(event);
@@ -103,17 +122,18 @@ function sessionLogRecordEvent(type, midi, velocity) {
 function sessionLogEndRound(result) {
     if (!sessionLogEnabled || !currentSessionLog || !currentRoundLog) return null;
 
+    const responseMs = Date.now() - currentRoundLog.startTime;
+
     currentRoundLog.result = {
         correct: result.correct,
-        responseTimeMs: result.responseTime ? Math.round(result.responseTime * 1000) : null,
         mistakes: result.mistakes || 0,
         slow: result.slow || false
     };
+    currentRoundLog.responseMs = responseMs;
 
     currentSessionLog.rounds.push(currentRoundLog);
     const completedRound = currentRoundLog;
     currentRoundLog = null;
-    roundStartTime = null;
 
     return completedRound;
 }
@@ -122,13 +142,12 @@ function sessionLogEndRound(result) {
 function sessionLogEndSession(summary) {
     if (!sessionLogEnabled || !currentSessionLog) return null;
 
-    currentSessionLog.endTime = new Date().toISOString();
+    currentSessionLog.endTime = Date.now();
     currentSessionLog.summary = {
         totalRounds: currentSessionLog.rounds.length,
-        correctRounds: summary.correctRounds || 0,
+        avgTime: summary.avgTime || null,
         firstTryPct: summary.firstTryPct || 0,
-        totalMistakes: summary.totalMistakes || 0,
-        avgResponseTimeMs: summary.avgResponseTimeMs || null,
+        mistakes: summary.mistakes || 0,
         slowCount: summary.slowCount || 0
     };
 
@@ -148,168 +167,143 @@ function sessionLogEndSession(summary) {
 }
 
 // Normalize challenge object to common format for logging
-function sessionLogNormalizeChallenge(challenge) {
-    if (!challenge) return null;
+// Accepts (mode, challenge) or just (challenge) for backwards compatibility
+function sessionLogNormalizeChallenge(modeOrChallenge, challenge) {
+    // Handle both (mode, challenge) and (challenge) signatures
+    let mode, ch;
+    if (challenge === undefined) {
+        ch = modeOrChallenge;
+        mode = null;
+    } else {
+        mode = modeOrChallenge;
+        ch = challenge;
+    }
 
-    // Create a serializable copy
-    const normalized = {};
+    if (!ch) return { prompt: '', expectedPitchClasses: [] };
+
+    // If challenge has a prompt field, use it directly
+    if (ch.prompt) {
+        return {
+            prompt: ch.prompt,
+            expectedPitchClasses: ch.expectedPitchClasses || ch.expectedMidi?.map(n => n % 12) || []
+        };
+    }
+
+    // If challenge has a name field, use it as prompt
+    if (ch.name) {
+        let expectedPitchClasses = [];
+        if (ch.notes && Array.isArray(ch.notes)) {
+            expectedPitchClasses = ch.notes.map(n => n % 12);
+        } else if (ch.expectedMidi && Array.isArray(ch.expectedMidi)) {
+            expectedPitchClasses = ch.expectedMidi.map(n => n % 12);
+        } else if (ch.requiredPitchClasses) {
+            expectedPitchClasses = ch.requiredPitchClasses instanceof Set
+                ? Array.from(ch.requiredPitchClasses)
+                : ch.requiredPitchClasses;
+        }
+        return {
+            prompt: ch.name,
+            expectedPitchClasses: expectedPitchClasses
+        };
+    }
 
     // Intervals mode
-    if ('targetMidi' in challenge) {
-        normalized.type = 'interval';
-        normalized.startMidi = challenge.startMidi;
-        normalized.targetMidi = challenge.targetMidi;
-        normalized.interval = challenge.interval;
-        normalized.direction = challenge.direction;
+    if (ch.rootNote !== undefined && ch.targetNote !== undefined) {
+        return {
+            prompt: ch.name || `Interval from ${ch.rootNote} to ${ch.targetNote}`,
+            expectedPitchClasses: [ch.targetNote % 12]
+        };
     }
-    // Chords mode (7th chords, extensions, etc.)
-    else if ('requiredPitchClasses' in challenge) {
-        normalized.type = 'chord';
-        normalized.root = challenge.root;
-        normalized.chordType = challenge.type;
-        normalized.name = challenge.name;
-        // Convert Set to Array for JSON serialization
-        normalized.requiredPitchClasses = challenge.requiredPitchClasses instanceof Set
-            ? Array.from(challenge.requiredPitchClasses)
-            : challenge.requiredPitchClasses;
+
+    // Intervals mode (alternative format)
+    if (ch.interval && (ch.startMidi !== undefined || ch.targetMidi !== undefined)) {
+        return {
+            prompt: ch.interval || ch.name || 'Interval',
+            expectedPitchClasses: ch.targetMidi !== undefined ? [ch.targetMidi % 12] : []
+        };
     }
-    // Tritone substitution mode (actual field names from codebase)
-    else if ('subRoot' in challenge && 'fullPitchClasses' in challenge) {
-        normalized.type = 'tritone';
-        normalized.originalRoot = challenge.originalRoot;
-        normalized.subRoot = challenge.subRoot;
-        normalized.fullPitchClasses = challenge.fullPitchClasses instanceof Set
-            ? Array.from(challenge.fullPitchClasses)
-            : challenge.fullPitchClasses;
-        normalized.shellPitchClasses = challenge.shellPitchClasses instanceof Set
-            ? Array.from(challenge.shellPitchClasses)
-            : challenge.shellPitchClasses;
+
+    // Chords with requiredPitchClasses
+    if (ch.requiredPitchClasses) {
+        const pcs = ch.requiredPitchClasses instanceof Set
+            ? Array.from(ch.requiredPitchClasses)
+            : ch.requiredPitchClasses;
+        return {
+            prompt: ch.name || ch.chordName || `${ch.root || ''} ${ch.type || 'chord'}`.trim(),
+            expectedPitchClasses: pcs
+        };
     }
-    // ii-V-I and similar progression modes
-    else if ('chords' in challenge && Array.isArray(challenge.chords)) {
-        normalized.type = 'progression';
-        normalized.key = challenge.key;
-        normalized.currentStep = challenge.currentStep;
-        normalized.chords = challenge.chords.map(c => ({
-            root: c.root,
-            type: c.type,
-            pitchClasses: c.pitchClasses instanceof Set ? Array.from(c.pitchClasses) : (c.pitchClasses || [])
-        }));
+
+    // Scales
+    if (ch.scaleNotes || (ch.notes && ch.scale)) {
+        const notes = ch.scaleNotes || ch.notes;
+        return {
+            prompt: ch.name || `${ch.root || ''} ${ch.scale || ch.type || 'scale'}`.trim(),
+            expectedPitchClasses: Array.isArray(notes) ? notes.map(n => n % 12) : []
+        };
     }
-    // Scales mode (actual field names: scaleNotes, currentNoteIndex)
-    else if ('scaleNotes' in challenge || 'scale' in challenge || 'notes' in challenge) {
-        normalized.type = 'scale';
-        normalized.root = challenge.root;
-        normalized.scaleType = challenge.scale || challenge.type;
-        normalized.notes = challenge.scaleNotes
-            ? Array.from(challenge.scaleNotes)
-            : (challenge.notes ? Array.from(challenge.notes) : null);
-        normalized.currentIndex = challenge.currentNoteIndex || challenge.currentIndex;
-    }
-    // Voice leading mode (actual field names: sourceChord, targetChord)
-    else if ('sourceChord' in challenge && 'targetChord' in challenge) {
-        normalized.type = 'voiceLeading';
-        normalized.sourceChord = challenge.sourceChord;
-        normalized.targetChord = challenge.targetChord;
-        normalized.sourceNotes = challenge.sourceNotes;
-        normalized.targetNotes = challenge.targetNotes;
-    }
-    // Voice leading mode (alternative format: from, to)
-    else if ('from' in challenge && 'to' in challenge) {
-        normalized.type = 'voiceLeading';
-        normalized.from = challenge.from;
-        normalized.to = challenge.to;
-    }
-    // Generic fallback - copy all enumerable properties
-    else {
-        normalized.type = 'unknown';
-        for (const key in challenge) {
-            if (challenge.hasOwnProperty(key)) {
-                const val = challenge[key];
-                if (val instanceof Set) {
-                    normalized[key] = Array.from(val);
-                } else if (typeof val !== 'function') {
-                    normalized[key] = val;
-                }
-            }
-        }
-    }
+
+    // Generic fallback
+    const normalized = {
+        prompt: ch.name || ch.prompt || JSON.stringify(ch).substring(0, 50),
+        expectedPitchClasses: []
+    };
+
+    // Try to extract pitch classes from common fields
+    if (ch.notes) normalized.expectedPitchClasses = ch.notes.map(n => n % 12);
+    else if (ch.expectedMidi) normalized.expectedPitchClasses = ch.expectedMidi.map(n => n % 12);
+    else if (ch.pitchClasses) normalized.expectedPitchClasses = Array.isArray(ch.pitchClasses) ? ch.pitchClasses : Array.from(ch.pitchClasses);
 
     return normalized;
 }
 
 // Extract expected pitch classes from challenge
-function sessionLogExtractExpectedPitchClasses(challenge) {
-    if (!challenge) return [];
-
-    // Intervals - single target note
-    if ('targetMidi' in challenge) {
-        return [challenge.targetMidi % 12];
+// Accepts (mode, challenge) or just (challenge) for backwards compatibility
+function sessionLogExtractExpectedPitchClasses(modeOrChallenge, challenge) {
+    // Handle both signatures
+    let ch;
+    if (challenge === undefined) {
+        ch = modeOrChallenge;
+    } else {
+        ch = challenge;
     }
 
-    // Chords with requiredPitchClasses Set
-    if (challenge.requiredPitchClasses instanceof Set) {
-        return Array.from(challenge.requiredPitchClasses);
+    if (!ch) return [];
+
+    // Direct expectedPitchClasses
+    if (ch.expectedPitchClasses) {
+        return Array.isArray(ch.expectedPitchClasses) ? ch.expectedPitchClasses : Array.from(ch.expectedPitchClasses);
     }
 
-    // Chords with requiredPitchClasses Array
-    if (Array.isArray(challenge.requiredPitchClasses)) {
-        return challenge.requiredPitchClasses;
+    // expectedMidi array
+    if (ch.expectedMidi && Array.isArray(ch.expectedMidi)) {
+        return ch.expectedMidi.map(n => n % 12);
     }
 
-    // Tritone - use fullPitchClasses or shellPitchClasses
-    if ('fullPitchClasses' in challenge) {
-        return challenge.fullPitchClasses instanceof Set
-            ? Array.from(challenge.fullPitchClasses)
-            : (challenge.fullPitchClasses || []);
+    // notes array
+    if (ch.notes && Array.isArray(ch.notes)) {
+        return ch.notes.map(n => n % 12);
     }
 
-    // Progressions - current chord's pitch classes
-    if ('chords' in challenge && Array.isArray(challenge.chords)) {
-        const currentStep = challenge.currentStep || 0;
-        const currentChord = challenge.chords[currentStep];
-        if (currentChord && currentChord.pitchClasses) {
-            return currentChord.pitchClasses instanceof Set
-                ? Array.from(currentChord.pitchClasses)
-                : currentChord.pitchClasses;
-        }
+    // Intervals - target note
+    if (ch.targetNote !== undefined) {
+        return [ch.targetNote % 12];
+    }
+    if (ch.targetMidi !== undefined) {
+        return [ch.targetMidi % 12];
     }
 
-    // Scales - current note (handles both scaleNotes and notes)
-    if ('scaleNotes' in challenge && Array.isArray(challenge.scaleNotes)) {
-        const idx = challenge.currentNoteIndex || 0;
-        if (idx < challenge.scaleNotes.length) {
-            return [challenge.scaleNotes[idx] % 12];
-        }
-    }
-    if ('notes' in challenge && Array.isArray(challenge.notes)) {
-        const idx = challenge.currentIndex || 0;
-        if (idx < challenge.notes.length) {
-            return [challenge.notes[idx] % 12];
-        }
+    // Chords with requiredPitchClasses
+    if (ch.requiredPitchClasses) {
+        return ch.requiredPitchClasses instanceof Set
+            ? Array.from(ch.requiredPitchClasses)
+            : ch.requiredPitchClasses;
     }
 
-    // Voice leading - target chord (handles sourceChord/targetChord format)
-    if ('targetChord' in challenge && challenge.targetChord) {
-        if (challenge.targetNotes && Array.isArray(challenge.targetNotes)) {
-            return challenge.targetNotes.map(n => n % 12);
-        }
-    }
-
-    // Voice leading - target chord (handles from/to format)
-    if ('to' in challenge && challenge.to) {
-        if (challenge.to.pitchClasses) {
-            return challenge.to.pitchClasses instanceof Set
-                ? Array.from(challenge.to.pitchClasses)
-                : challenge.to.pitchClasses;
-        }
-    }
-
-    // Tritone - target pitch class (legacy format)
-    if ('target' in challenge && typeof challenge.target === 'number') {
-        return [challenge.target % 12];
+    // Scales
+    if (ch.scaleNotes && Array.isArray(ch.scaleNotes)) {
+        return ch.scaleNotes.map(n => n % 12);
     }
 
     return [];
 }
-
