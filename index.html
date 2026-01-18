@@ -7111,6 +7111,7 @@
         }
 
         function extShowGameComplete() {
+            sessionLogEndSession();
             document.getElementById('ext_stopBtn').classList.add('hidden');
             document.getElementById('ext_challengeDisplay').classList.add('hidden');
             document.getElementById('ext_gameCompleteDisplay').classList.remove('hidden');
@@ -7590,6 +7591,7 @@
         }
 
         function altShowGameComplete() {
+            sessionLogEndSession();
             document.getElementById('alt_stopBtn').classList.add('hidden');
             document.getElementById('alt_challengeDisplay').classList.add('hidden');
             document.getElementById('alt_gameCompleteDisplay').classList.remove('hidden');
@@ -9211,6 +9213,7 @@
         }
 
         function kbGameComplete() {
+            sessionLogEndSession();
             kb_gameActive = false;
             kb_isPlaying = false;
 
@@ -14017,6 +14020,7 @@
             freestyle_roundHadMistake = false;
             freestyle_heldNotes.clear();
             freestyle_challengeStartTime = Date.now();
+            sessionLogStartRound(freestyle_challenge);
 
             // Initialize stats for this chord
             const statKey = chordName;
@@ -14109,6 +14113,11 @@
                 document.getElementById('freestyle_responseTime').innerText = seconds.toFixed(1) + 's';
                 document.getElementById('freestyle_responseTime').className = 'text-2xl font-mono ' +
                     (seconds < 2 ? 'timer-fast' : seconds < 4 ? 'timer-medium' : 'timer-slow');
+
+                sessionLogEndRound({
+                    responseTime: freestyle_confirmedTime,
+                    isFirstTry: !freestyle_roundHadMistake
+                });
 
                 // Show initial valid feedback
                 document.getElementById('freestyle_feedbackText').innerText = '✓ Valid!';
