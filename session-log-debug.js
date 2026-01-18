@@ -152,13 +152,21 @@
 
     // Poll for updates (MIDI wrapper doesn't work - callback already bound)
     let lastEventCount = 0;
+    let hadSession = false;
+    let hadRound = false;
     setInterval(() => {
         const panel = document.getElementById('debugPanel');
         if (!panel || panel.classList.contains('hidden')) return;
 
         const currentCount = currentRoundLog?.events?.length || 0;
-        if (currentCount !== lastEventCount || currentSessionLog || currentRoundLog) {
+        const hasSession = !!currentSessionLog;
+        const hasRound = !!currentRoundLog;
+
+        // Update when event count changes OR session/round state changes (including ending)
+        if (currentCount !== lastEventCount || hasSession !== hadSession || hasRound !== hadRound) {
             lastEventCount = currentCount;
+            hadSession = hasSession;
+            hadRound = hasRound;
             window.updateDebugPanel();
         }
     }, 100);
