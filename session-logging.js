@@ -200,7 +200,9 @@ function sessionLogLoadFromStorage() {
         if (typeof localStorage !== 'undefined') {
             const data = localStorage.getItem('sessionLogData');
             if (data) {
-                sessionLogSessions = JSON.parse(data);
+                const parsed = JSON.parse(data);
+                // Ensure it's an array (guard against corrupted/old format data)
+                sessionLogSessions = Array.isArray(parsed) ? parsed : [];
             }
         }
     } catch (e) {
