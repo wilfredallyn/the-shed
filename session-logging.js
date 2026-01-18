@@ -410,19 +410,27 @@ function exportSessionLogDetailedCSV() {
 }
 
 /**
+ * Generate timestamp string for filenames (YYYY-MM-DD_HHMMSS)
+ */
+function sessionLogTimestamp() {
+    var now = new Date();
+    var date = now.toISOString().slice(0, 10);
+    var time = now.toTimeString().slice(0, 8).replace(/:/g, '');
+    return date + '_' + time;
+}
+
+/**
  * Download summary CSV file
  */
 function downloadSessionLogSummaryCSV() {
-    var dateStr = new Date().toISOString().slice(0, 10);
-    downloadSessionLogCSV(exportSessionLogSummaryCSV(), 'piano-tutor-summary-' + dateStr + '.csv');
+    downloadSessionLogCSV(exportSessionLogSummaryCSV(), 'piano-tutor-summary-' + sessionLogTimestamp() + '.csv');
 }
 
 /**
  * Download detailed CSV file
  */
 function downloadSessionLogDetailedCSV() {
-    var dateStr = new Date().toISOString().slice(0, 10);
-    downloadSessionLogCSV(exportSessionLogDetailedCSV(), 'piano-tutor-detailed-' + dateStr + '.csv');
+    downloadSessionLogCSV(exportSessionLogDetailedCSV(), 'piano-tutor-detailed-' + sessionLogTimestamp() + '.csv');
 }
 
 
