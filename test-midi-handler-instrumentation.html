@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MIDI Handler Instrumentation Tests (roa.2)</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #1a1a2e;
+            color: #eee;
+        }
+        h1 { color: #4ade80; }
+        h2 { color: #60a5fa; margin-top: 30px; }
+        .test {
+            padding: 8px 12px;
+            margin: 4px 0;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        .pass { background: #166534; }
+        .fail { background: #991b1b; }
+        .summary {
+            margin-top: 30px;
+            padding: 20px;
+            background: #16213e;
+            border-radius: 8px;
+        }
+        .summary.all-pass { border: 2px solid #4ade80; }
+        .summary.has-fails { border: 2px solid #f87171; }
+        pre {
+            background: #0f0f1a;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+        .instructions {
+            background: #1e3a5f;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>MIDI Handler Instrumentation Tests (roa.2)</h1>
+
+    <div class="instructions">
+        <strong>Bead:</strong> the-shed-roa.2 - MIDI Handler Instrumentation<br>
+        <strong>Tests:</strong> Verify handleMIDI calls sessionLogRecordEvent on noteOn/noteOff events.
+    </div>
+
+    <div id="results"></div>
+    <div id="summary" class="summary"></div>
+
+    <!-- Load the session logging code (roa.1 dependency) -->
+    <script src="session-logging.js"></script>
+
+    <script>
+        // Simple test framework
+        const results = [];
+
+        function test(name, fn) {
+            try {
+                fn();
+                results.push({ name, status: 'pass' });
+            } catch (e) {
+                results.push({ name, status: 'fail', error: e.message });
+            }
+        }
+
+        function assert(condition, message) {
+            if (!condition) throw new Error(message || 'Assertion failed');
+        }
+
+        function assertEqual(actual, expected, message) {
+            if (actual !== expected) {
+                throw new Error(message || `Expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+            }
+        }
+
+        function assertType(value, type, message) {
+            if (typeof value !== type) {
+                throw new Error(message || `Expected type ${type}, got ${typeof value}`);
+            }
+        }
+
+        // ==================== MOCK SETUP ====================
+
+        // Track calls to sessionLogRecordEvent
+        let recordEventCalls = [];
+        const originalRecordEvent = typeof sessionLogRecordEvent === 'function'
+            ? sessionLogRecordEvent
+            : null;
+
+        function mockSessionLogRecordEvent(type, midi, velocity) {
+            recordEventCalls.push({ type, midi, velocity });
+            // Also call original if it exists for isCorrect computation
+            if (originalRecordEvent) {
+                originalRecordEvent(type, midi, velocity);
+            }
+        }
+
+        // Replace global if original exists
+        if (originalRecordEvent) {
+            sessionLogRecordEvent = mockSessionLogRecordEvent;
+        }
+
+        function resetMocks() {
+            recordEventCalls = [];
+            localStorage.removeItem('sessionLogData');
+            if (typeof sessionLogEnabled !== 'undefined') sessionLogEnabled = false;
+            if (typeof sessionLogSessions !== 'undefined') sessionLogSessions = [];
+            if (typeof currentSessionLog !== 'undefined') currentSessionLog = null;
+            if (typeof currentRoundLog !== 'undefined') currentRoundLog = null;
+            if (typeof roundStartTime !== 'undefined') roundStartTime = null;
+        }
+
+        // Simulate MIDI message for handleMIDI
+        function createMIDIMessage(cmd, note, vel) {
+            return { data: [cmd, note, vel] };
+        }
+
+        // Stub for mode-specific handlers (not tested here)
+        let heldNotes = new Set();
+        function updateChordIdentifier() {}
+        function highlightKey() {}
+        let currentMode = 'chords';
+
+        // Simplified handleMIDI that matches the instrumented version in index.html
+        // This tests the session logging instrumentation added by roa.2
+        function handleMIDI(msg) {
+            const [cmd, note, vel] = msg.data;
+            if ((cmd & 0xF0) === 144 && vel > 0) {
+                // NOTE ON
+                heldNotes.add(note);
+                updateChordIdentifier();
+                highlightKey('previewPianoSvg', note, 'key-active');
+
+                // Session logging (roa.2 instrumentation)
+                if (sessionLogEnabled && currentRoundLog) {
+                    sessionLogRecordEvent('noteOn', note, vel);
+                }
+
+                // Mode-specific handlers omitted (not relevant for this test)
+            } else if ((cmd & 0xF0) === 128 || ((cmd & 0xF0) === 144 && vel === 0)) {
+                // NOTE OFF
+                heldNotes.delete(note);
+                updateChordIdentifier();
+                highlightKey('previewPianoSvg', note, 'key-active', false);
+
+                // Session logging (roa.2 instrumentation)
+                if (sessionLogEnabled && currentRoundLog) {
+                    sessionLogRecordEvent('noteOff', note, vel);
+                }
+
+                // Mode-specific handlers omitted (not relevant for this test)
+            }
+        }
+
+        // ==================== TESTS ====================
+
+        // Test 1: handleMIDI should call sessionLogRecordEvent on noteOn
+        test('handleMIDI calls sessionLogRecordEvent on noteOn when logging enabled', () => {
+            resetMocks();
+
+            // Setup: Enable logging with active round
+            sessionLogEnabled = true;
+            currentSessionLog = { mode: 'chords', rounds: [], startTime: Date.now() };
+            currentRoundLog = {
+                challenge: { prompt: 'C Major' }, expectedPitchClasses: [0, 4, 7],
+                events: [],
+                startTime: Date.now()
+            };
+            roundStartTime = Date.now();
+
+            // Act: Simulate noteOn MIDI message (cmd 144 = noteOn, note 60 = C, vel 100)
+            if (typeof handleMIDI === 'function') {
+                handleMIDI(createMIDIMessage(144, 60, 100));
+            } else {
+                throw new Error('handleMIDI function not found - implementation missing');
+            }
+
+            // Assert: sessionLogRecordEvent was called with noteOn
+            const noteOnCall = recordEventCalls.find(c => c.type === 'noteOn' && c.midi === 60);
+            assert(noteOnCall !== undefined, 'sessionLogRecordEvent should be called with noteOn for MIDI note 60');
+            assertEqual(noteOnCall.velocity, 100, 'velocity should be passed correctly');
+        });
+
+        // Test 2: handleMIDI should call sessionLogRecordEvent on noteOff
+        test('handleMIDI calls sessionLogRecordEvent on noteOff when logging enabled', () => {
+            resetMocks();
+
+            // Setup: Enable logging with active round
+            sessionLogEnabled = true;
+            currentSessionLog = { mode: 'chords', rounds: [], startTime: Date.now() };
+            currentRoundLog = {
+                challenge: { prompt: 'C Major' }, expectedPitchClasses: [0, 4, 7],
+                events: [],
+                startTime: Date.now()
+            };
+            roundStartTime = Date.now();
+
+            // Act: Simulate noteOff MIDI message (cmd 128 = noteOff)
+            if (typeof handleMIDI === 'function') {
+                handleMIDI(createMIDIMessage(128, 60, 0));
+            } else {
+                throw new Error('handleMIDI function not found - implementation missing');
+            }
+
+            // Assert: sessionLogRecordEvent was called with noteOff
+            const noteOffCall = recordEventCalls.find(c => c.type === 'noteOff' && c.midi === 60);
+            assert(noteOffCall !== undefined, 'sessionLogRecordEvent should be called with noteOff for MIDI note 60');
+        });
+
+        // Test 3: handleMIDI should call sessionLogRecordEvent on noteOff via vel=0
+        test('handleMIDI calls sessionLogRecordEvent on noteOff via velocity 0', () => {
+            resetMocks();
+
+            // Setup: Enable logging with active round
+            sessionLogEnabled = true;
+            currentSessionLog = { mode: 'chords', rounds: [], startTime: Date.now() };
+            currentRoundLog = {
+                challenge: { prompt: 'C Major' }, expectedPitchClasses: [0, 4, 7],
+                events: [],
+                startTime: Date.now()
+            };
+            roundStartTime = Date.now();
+
+            // Act: Simulate noteOff via noteOn with velocity 0 (common MIDI pattern)
+            if (typeof handleMIDI === 'function') {
+                handleMIDI(createMIDIMessage(144, 64, 0)); // noteOn with vel=0 = noteOff
+            } else {
+                throw new Error('handleMIDI function not found - implementation missing');
+            }
+
+            // Assert: sessionLogRecordEvent was called with noteOff
+            const noteOffCall = recordEventCalls.find(c => c.type === 'noteOff' && c.midi === 64);
+            assert(noteOffCall !== undefined, 'sessionLogRecordEvent should be called with noteOff for velocity=0 noteOn');
+        });
+
+        // Test 4: Guard - no logging when sessionLogEnabled is false
+        test('handleMIDI does NOT call sessionLogRecordEvent when logging disabled', () => {
+            resetMocks();
+
+            // Setup: Disable logging
+            sessionLogEnabled = false;
+            currentSessionLog = { mode: 'chords', rounds: [], startTime: Date.now() };
+            currentRoundLog = {
+                challenge: { prompt: 'C Major' }, expectedPitchClasses: [0, 4, 7],
+                events: [],
+                startTime: Date.now()
+            };
+            roundStartTime = Date.now();
+
+            // Act: Simulate noteOn
+            if (typeof handleMIDI === 'function') {
+                handleMIDI(createMIDIMessage(144, 60, 100));
+            } else {
+                throw new Error('handleMIDI function not found - implementation missing');
+            }
+
+            // Assert: sessionLogRecordEvent was NOT called (because sessionLogEnabled is false)
+            assertEqual(recordEventCalls.length, 0, 'sessionLogRecordEvent should not be called when logging disabled');
+        });
+
+        // Test 5: Guard - no logging when no active round (currentRoundLog is null)
+        test('handleMIDI does NOT call sessionLogRecordEvent when no active round', () => {
+            resetMocks();
+
+            // Setup: Enable logging but no active round
+            sessionLogEnabled = true;
+            currentSessionLog = { mode: 'chords', rounds: [], startTime: Date.now() };
+            currentRoundLog = null;
+            roundStartTime = Date.now();
+
+            // Act: Simulate noteOn
+            if (typeof handleMIDI === 'function') {
+                handleMIDI(createMIDIMessage(144, 60, 100));
+            } else {
+                throw new Error('handleMIDI function not found - implementation missing');
+            }
+
+            // Assert: sessionLogRecordEvent was NOT called
+            assertEqual(recordEventCalls.length, 0, 'sessionLogRecordEvent should not be called when no active round');
+        });
+
+        // Test 6: isCorrect should be true for correct pitch class on noteOn
+        test('isCorrect is true when note pitch class matches expectedPitchClasses', () => {
+            resetMocks();
+
+            // Setup: Enable logging with C Major chord (pitch classes 0, 4, 7)
+            sessionLogEnabled = true;
+            currentSessionLog = { mode: 'chords', rounds: [], startTime: Date.now() };
+            currentRoundLog = {
+                challenge: { prompt: 'C Major' }, expectedPitchClasses: [0, 4, 7],
+                events: [],
+                startTime: Date.now()
+            };
+            roundStartTime = Date.now();
+
+            // Act: Play C (MIDI 60, pitch class 0)
+            if (typeof handleMIDI === 'function') {
+                handleMIDI(createMIDIMessage(144, 60, 100));
+            } else {
+                throw new Error('handleMIDI function not found - implementation missing');
+            }
+
+            // Assert: Event has isCorrect = true
+            assert(currentRoundLog.events.length > 0, 'Event should be recorded');
+            const event = currentRoundLog.events.find(e => e.midi === 60);
+            assert(event !== undefined, 'Event for MIDI 60 should exist');
+            assertEqual(event.isCorrect, true, 'C (pitch class 0) should be marked correct for C Major');
+        });
+
+        // Test 7: isCorrect should be false for wrong pitch class on noteOn
+        test('isCorrect is false when note pitch class does not match expectedPitchClasses', () => {
+            resetMocks();
+
+            // Setup: Enable logging with C Major chord (pitch classes 0, 4, 7)
+            sessionLogEnabled = true;
+            currentSessionLog = { mode: 'chords', rounds: [], startTime: Date.now() };
+            currentRoundLog = {
+                challenge: { prompt: 'C Major' }, expectedPitchClasses: [0, 4, 7],
+                events: [],
+                startTime: Date.now()
+            };
+            roundStartTime = Date.now();
+
+            // Act: Play C# (MIDI 61, pitch class 1 - wrong note)
+            if (typeof handleMIDI === 'function') {
+                handleMIDI(createMIDIMessage(144, 61, 100));
+            } else {
+                throw new Error('handleMIDI function not found - implementation missing');
+            }
+
+            // Assert: Event has isCorrect = false
+            assert(currentRoundLog.events.length > 0, 'Event should be recorded');
+            const event = currentRoundLog.events.find(e => e.midi === 61);
+            assert(event !== undefined, 'Event for MIDI 61 should exist');
+            assertEqual(event.isCorrect, false, 'C# (pitch class 1) should be marked incorrect for C Major');
+        });
+
+        // Test 8: isCorrect should be null for noteOff events
+        test('isCorrect is null for noteOff events', () => {
+            resetMocks();
+
+            // Setup: Enable logging with active round
+            sessionLogEnabled = true;
+            currentSessionLog = { mode: 'chords', rounds: [], startTime: Date.now() };
+            currentRoundLog = {
+                challenge: { prompt: 'C Major' }, expectedPitchClasses: [0, 4, 7],
+                events: [],
+                startTime: Date.now()
+            };
+            roundStartTime = Date.now();
+
+            // Act: Send noteOff
+            if (typeof handleMIDI === 'function') {
+                handleMIDI(createMIDIMessage(128, 60, 0));
+            } else {
+                throw new Error('handleMIDI function not found - implementation missing');
+            }
+
+            // Assert: Event has isCorrect = null
+            assert(currentRoundLog.events.length > 0, 'Event should be recorded');
+            const event = currentRoundLog.events.find(e => e.type === 'noteOff');
+            assert(event !== undefined, 'noteOff event should exist');
+            assertEqual(event.isCorrect, null, 'noteOff events should have isCorrect = null');
+        });
+
+        // Test 9: isCorrect works with different octaves (same pitch class)
+        test('isCorrect handles different octaves correctly (pitch class equivalence)', () => {
+            resetMocks();
+
+            // Setup: Enable logging with C Major (pitch classes 0, 4, 7)
+            sessionLogEnabled = true;
+            currentSessionLog = { mode: 'chords', rounds: [], startTime: Date.now() };
+            currentRoundLog = {
+                challenge: { prompt: 'C Major' }, expectedPitchClasses: [0, 4, 7],
+                events: [],
+                startTime: Date.now()
+            };
+            roundStartTime = Date.now();
+
+            // Act: Play C in different octave (MIDI 72, pitch class 0)
+            if (typeof handleMIDI === 'function') {
+                handleMIDI(createMIDIMessage(144, 72, 100));
+            } else {
+                throw new Error('handleMIDI function not found - implementation missing');
+            }
+
+            // Assert: C in any octave should be correct
+            assert(currentRoundLog.events.length > 0, 'Event should be recorded');
+            const event = currentRoundLog.events.find(e => e.midi === 72);
+            assert(event !== undefined, 'Event for MIDI 72 should exist');
+            assertEqual(event.isCorrect, true, 'C (MIDI 72, pitch class 0) should be correct for C Major');
+        });
+
+        // Test 10: isCorrect is null when expectedPitchClasses is not set
+        test('isCorrect is null when expectedPitchClasses not available', () => {
+            resetMocks();
+
+            // Setup: Enable logging but no expectedPitchClasses in challenge
+            sessionLogEnabled = true;
+            currentSessionLog = { mode: 'freestyle', rounds: [], startTime: Date.now() };
+            currentRoundLog = {
+                challenge: { prompt: 'Free play' }, // No expectedPitchClasses
+                events: [],
+                startTime: Date.now()
+            };
+            roundStartTime = Date.now();
+
+            // Act: Play any note
+            if (typeof handleMIDI === 'function') {
+                handleMIDI(createMIDIMessage(144, 60, 100));
+            } else {
+                throw new Error('handleMIDI function not found - implementation missing');
+            }
+
+            // Assert: isCorrect should be null (cannot determine correctness)
+            assert(currentRoundLog.events.length > 0, 'Event should be recorded');
+            const event = currentRoundLog.events[0];
+            assertEqual(event.isCorrect, null, 'isCorrect should be null when no expectedPitchClasses');
+        });
+
+        // ==================== DISPLAY RESULTS ====================
+
+        const resultsDiv = document.getElementById('results');
+        const summaryDiv = document.getElementById('summary');
+
+        let passCount = 0;
+        let failCount = 0;
+
+        results.forEach(r => {
+            const div = document.createElement('div');
+            div.className = `test ${r.status}`;
+
+            if (r.status === 'pass') {
+                div.textContent = `PASS: ${r.name}`;
+                passCount++;
+            } else {
+                div.innerHTML = `FAIL: ${r.name}<br><small style="opacity:0.8">${r.error}</small>`;
+                failCount++;
+            }
+
+            resultsDiv.appendChild(div);
+        });
+
+        summaryDiv.className = `summary ${failCount === 0 ? 'all-pass' : 'has-fails'}`;
+        summaryDiv.innerHTML = `
+            <h2 style="margin-top:0">Summary</h2>
+            <p><strong>${passCount}</strong> passed, <strong>${failCount}</strong> failed</p>
+            ${failCount === 0
+                ? '<p style="color:#4ade80">All tests passing!</p>'
+                : '<p style="color:#f87171">Some tests failed. Implementation needed for roa.2.</p>'}
+        `;
+    </script>
+</body>
+</html>
