@@ -150,15 +150,26 @@
         console.log('Test round started. Expected notes: C, E, G');
     };
 
-    // Wrap handleMIDI to update panel
-    if (typeof handleMIDI === 'function' && !window._debugMIDIWrapped) {
-        const originalHandleMIDI = handleMIDI;
-        window.handleMIDI = function(msg) {
-            originalHandleMIDI(msg);
+    // Poll for updates (MIDI wrapper doesn't work - callback already bound)
+    let lastEventCount = 0;
+    let hadSession = false;
+    let hadRound = false;
+    setInterval(() => {
+        const panel = document.getElementById('debugPanel');
+        if (!panel || panel.classList.contains('hidden')) return;
+
+        const currentCount = currentRoundLog?.events?.length || 0;
+        const hasSession = !!currentSessionLog;
+        const hasRound = !!currentRoundLog;
+
+        // Update when event count changes OR session/round state changes (including ending)
+        if (currentCount !== lastEventCount || hasSession !== hadSession || hasRound !== hadRound) {
+            lastEventCount = currentCount;
+            hadSession = hasSession;
+            hadRound = hasRound;
             window.updateDebugPanel();
-        };
-        window._debugMIDIWrapped = true;
-    }
+        }
+    }, 100);
 
     // Toggle with backtick key
     document.addEventListener('keydown', (e) => {
