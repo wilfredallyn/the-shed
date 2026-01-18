@@ -13491,7 +13491,8 @@
                 attya: {
                     voicing: document.getElementById('attya_voicingSelect').value,
                     showHints: document.getElementById('attya_showHints').checked
-                }
+                },
+                sessionLogEnabled: sessionLogEnabled
             };
             localStorage.setItem('pianoTutorSettings', JSON.stringify(settings));
         }
@@ -13659,6 +13660,11 @@
                 if (settings.attya) {
                     if (settings.attya.voicing) document.getElementById('attya_voicingSelect').value = settings.attya.voicing;
                     if (settings.attya.showHints !== undefined) document.getElementById('attya_showHints').checked = settings.attya.showHints;
+                }
+
+                // Session Logging
+                if (settings.sessionLogEnabled !== undefined) {
+                    sessionLogEnabled = settings.sessionLogEnabled;
                 }
             } catch (e) {
                 console.error('Failed to load settings:', e);
