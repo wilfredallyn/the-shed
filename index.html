@@ -3612,6 +3612,9 @@
 
     </div>
 
+    <!-- Session Logging Infrastructure -->
+    <script src="session-logging.js"></script>
+
     <script>
         // ============ CONFIGURATION ============
         const NOTE_NAMES = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
@@ -4459,6 +4462,12 @@
                 updateChordIdentifier();
                 // Highlight preview piano (for testing before game starts)
                 highlightKey('previewPianoSvg', note, 'key-active');
+
+                // Session logging
+                if (sessionLogEnabled && currentRoundLog) {
+                    sessionLogRecordEvent('noteOn', note, vel);
+                }
+
                 if (currentMode === 'intervals') intOnNoteOn(note);
                 else if (currentMode === 'chords') chOnNoteOn(note);
                 else if (currentMode === 'iivi') iiviOnNoteOn(note);
@@ -4484,6 +4493,12 @@
                 updateChordIdentifier();
                 // Clear preview piano highlight
                 highlightKey('previewPianoSvg', note, 'key-active', false);
+
+                // Session logging
+                if (sessionLogEnabled && currentRoundLog) {
+                    sessionLogRecordEvent('noteOff', note, vel);
+                }
+
                 if (currentMode === 'intervals') intOnNoteOff(note);
                 else if (currentMode === 'chords') chOnNoteOff(note);
                 else if (currentMode === 'iivi') iiviOnNoteOff(note);
