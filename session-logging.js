@@ -222,5 +222,197 @@ function sessionLogClear() {
     }
 }
 
+
+// ==================== CSV EXPORT FUNCTIONS ====================
+
+// Note names for MIDI to note conversion
+var SESSION_LOG_NOTE_NAMES = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
+
+/**
+ * Escape a value for CSV (RFC 4180 compliant)
+ * @param {*} value - Value to escape
+ * @returns {string} CSV-safe string
+ */
+function sessionLogEscapeCSV(value) {
+    if (value === null || value === undefined) {
+        return '';
+    }
+    var str = String(value);
+    // If contains comma, quote, or newline, wrap in quotes and double any quotes
+    if (str.indexOf(',') !== -1 || str.indexOf('"') !== -1 || str.indexOf('\n') !== -1) {
+        return '"' + str.replace(/"/g, '""') + '"';
+    }
+    return str;
+}
+
+/**
+ * Extract a human-readable prompt from a challenge object
+ * @param {object} challenge - Challenge object
+ * @returns {string} Challenge prompt text
+ */
+function sessionLogGetChallengePrompt(challenge) {
+    if (!challenge) return '';
+    if (challenge.prompt) return challenge.prompt;
+    if (challenge.intervalName) return challenge.intervalName;
+    if (challenge.chordName) return challenge.chordName;
+    if (challenge.name) return challenge.name;
+    return JSON.stringify(challenge);
+}
+
+/**
+ * Count mistakes (incorrect noteOn events) in an events array
+ * @param {Array} events - Array of event objects
+ * @returns {number} Count of incorrect notes
+ */
+function sessionLogCountMistakes(events) {
+    if (!events || !Array.isArray(events)) return 0;
+    var count = 0;
+    for (var i = 0; i < events.length; i++) {
+        if (events[i].type === 'noteOn' && events[i].isCorrect === false) {
+            count++;
+        }
+    }
+    return count;
+}
+
+/**
+ * Trigger a CSV file download
+ * @param {string} content - CSV content
+ * @param {string} filename - Download filename
+ */
+function downloadSessionLogCSV(content, filename) {
+    var blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+    var url = URL.createObjectURL(blob);
+    var link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+}
+
+/**
+ * Export session log data as summary CSV (one row per round)
+ * Columns: session_id, mode, config, round_num, challenge_prompt, expected_notes, response_ms, correct, mistakes, slow
+ * @returns {string} CSV content
+ */
+function exportSessionLogSummaryCSV() {
+    var headers = ['session_id', 'mode', 'config', 'round_num', 'challenge_prompt', 'expected_notes', 'response_ms', 'correct', 'mistakes', 'slow'];
+    var rows = [headers.join(',')];
+
+    for (var i = 0; i < sessionLogSessions.length; i++) {
+        var session = sessionLogSessions[i];
+        var sessionId = session.startTime || i;
+        var mode = session.mode || '';
+        var config = sessionLogEscapeCSV(JSON.stringify(session.config || {}));
+
+        for (var j = 0; j < session.rounds.length; j++) {
+            var round = session.rounds[j];
+            var roundNum = j + 1;
+            var challengePrompt = sessionLogEscapeCSV(sessionLogGetChallengePrompt(round.challenge));
+
+            // Convert expected pitch classes to note names
+            var expectedNotes = '';
+            if (round.expectedPitchClasses && Array.isArray(round.expectedPitchClasses)) {
+                var noteNames = [];
+                for (var k = 0; k < round.expectedPitchClasses.length; k++) {
+                    noteNames.push(SESSION_LOG_NOTE_NAMES[round.expectedPitchClasses[k]]);
+                }
+                expectedNotes = noteNames.join(' ');
+            }
+
+            var responseMs = round.result && round.result.responseMs !== undefined ? round.result.responseMs : round.durationMs || '';
+            var correct = round.result && round.result.correct !== undefined ? round.result.correct : '';
+            var mistakes = round.result && round.result.mistakes !== undefined ? round.result.mistakes : sessionLogCountMistakes(round.events);
+            var slow = round.result && round.result.slow !== undefined ? round.result.slow : '';
+
+            var row = [
+                sessionId,
+                sessionLogEscapeCSV(mode),
+                config,
+                roundNum,
+                challengePrompt,
+                sessionLogEscapeCSV(expectedNotes),
+                responseMs,
+                correct,
+                mistakes,
+                slow
+            ];
+            rows.push(row.join(','));
+        }
+    }
+
+    return rows.join('\n');
+}
+
+/**
+ * Export session log data as detailed CSV (one row per MIDI event)
+ * Columns: session_id, mode, round_num, challenge_prompt, event_type, midi_note, note_name, octave, offset_ms, is_correct, round_result
+ * @returns {string} CSV content
+ */
+function exportSessionLogDetailedCSV() {
+    var headers = ['session_id', 'mode', 'round_num', 'challenge_prompt', 'event_type', 'midi_note', 'note_name', 'octave', 'offset_ms', 'is_correct', 'round_result'];
+    var rows = [headers.join(',')];
+
+    for (var i = 0; i < sessionLogSessions.length; i++) {
+        var session = sessionLogSessions[i];
+        var sessionId = session.startTime || i;
+        var mode = session.mode || '';
+
+        for (var j = 0; j < session.rounds.length; j++) {
+            var round = session.rounds[j];
+            var roundNum = j + 1;
+            var challengePrompt = sessionLogEscapeCSV(sessionLogGetChallengePrompt(round.challenge));
+            var roundResult = round.result && round.result.correct !== undefined ?
+                (round.result.correct ? 'correct' : 'incorrect') : '';
+
+            if (round.events && Array.isArray(round.events)) {
+                for (var k = 0; k < round.events.length; k++) {
+                    var event = round.events[k];
+                    var noteName = SESSION_LOG_NOTE_NAMES[event.midi % 12];
+                    var octave = Math.floor(event.midi / 12) - 1;
+                    var isCorrect = event.isCorrect !== null ? event.isCorrect : '';
+
+                    var row = [
+                        sessionId,
+                        sessionLogEscapeCSV(mode),
+                        roundNum,
+                        challengePrompt,
+                        event.type,
+                        event.midi,
+                        noteName,
+                        octave,
+                        event.offsetMs,
+                        isCorrect,
+                        roundResult
+                    ];
+                    rows.push(row.join(','));
+                }
+            }
+        }
+    }
+
+    return rows.join('\n');
+}
+
+/**
+ * Download summary CSV file
+ */
+function downloadSessionLogSummaryCSV() {
+    var dateStr = new Date().toISOString().slice(0, 10);
+    downloadSessionLogCSV(exportSessionLogSummaryCSV(), 'piano-tutor-summary-' + dateStr + '.csv');
+}
+
+/**
+ * Download detailed CSV file
+ */
+function downloadSessionLogDetailedCSV() {
+    var dateStr = new Date().toISOString().slice(0, 10);
+    downloadSessionLogCSV(exportSessionLogDetailedCSV(), 'piano-tutor-detailed-' + dateStr + '.csv');
+}
+
+
 // Initialize on load
 sessionLogLoadFromStorage();
