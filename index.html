@@ -3633,6 +3633,48 @@
             </div>
         </div>
 
+        <!-- Session Log Panel -->
+        <div class="bg-slate-800 rounded-lg p-6 shadow-lg mb-6">
+            <div class="flex justify-between items-center mb-4">
+                <div class="flex items-center gap-3">
+                    <h2 class="text-xl font-semibold text-white">Session Log</h2>
+                    <span id="sessionLogBadge" class="bg-amber-600 text-white text-xs px-2 py-0.5 rounded-full">0</span>
+                </div>
+                <div class="flex items-center gap-3">
+                    <label class="inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="sessionLogToggle" class="w-4 h-4 rounded bg-slate-700 border-slate-600 mr-2" checked>
+                        <span class="text-sm text-slate-400">Enable Logging</span>
+                    </label>
+                    <button id="sessionLogExpandBtn" onclick="toggleSessionLogPanel()" class="text-slate-400 hover:text-white transition">
+                        <svg class="w-5 h-5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+                </div>
+            </div>
+            <div id="sessionLogPanel" class="hidden">
+                <!-- Storage Stats -->
+                <div id="sessionLogStats" class="text-sm text-slate-400 mb-4">
+                    <span>Sessions: <span id="sessionLogCount">0</span></span>
+                    <span class="mx-2">|</span>
+                    <span>Size: <span id="sessionLogSize">0 KB</span></span>
+                </div>
+                <!-- Export Buttons -->
+                <div class="flex gap-2 mb-4">
+                    <button id="exportJsonBtn" onclick="exportSessionLogJSON()" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm rounded transition">Export JSON</button>
+                    <button id="exportSummaryCsvBtn" onclick="exportSessionLogSummaryCSV()" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm rounded transition">Summary CSV</button>
+                    <button id="exportDetailedCsvBtn" onclick="exportSessionLogDetailedCSV()" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm rounded transition">Detailed CSV</button>
+                </div>
+                <!-- Recent Sessions List -->
+                <div class="mb-4">
+                    <h3 class="text-sm font-semibold text-slate-300 mb-2">Recent Sessions</h3>
+                    <div id="recentSessionsList" class="bg-slate-900 rounded p-3 text-slate-400 text-sm max-h-48 overflow-y-auto">
+                        No sessions logged yet.
+                    </div>
+                </div>
+                <!-- Clear Data Button -->
+                <button id="clearLogBtn" onclick="clearSessionLog()" class="px-3 py-1.5 bg-red-900 hover:bg-red-800 text-red-300 text-sm rounded transition">Clear All Data</button>
+            </div>
+        </div>
+
         <!-- Footer -->
         <footer class="text-center text-slate-500 text-sm mt-8 pt-4 pb-16 border-t border-slate-700">
             <span class="font-semibold text-slate-400">The Shed</span> · Feedback? DM <a href="https://twitter.com/dksf" target="_blank" class="text-amber-400 hover:text-amber-300">@dksf</a> on Twitter/X
@@ -13779,7 +13821,10 @@
                     voicing: document.getElementById('attya_voicingSelect').value,
                     showHints: document.getElementById('attya_showHints').checked
                 },
-                sessionLogEnabled: sessionLogEnabled
+                sessionLog: {
+                    enabled: document.getElementById('sessionLogToggle').checked,
+                    panelExpanded: !document.getElementById('sessionLogPanel').classList.contains('hidden')
+                }
             };
             localStorage.setItem('pianoTutorSettings', JSON.stringify(settings));
         }
@@ -13949,13 +13994,21 @@
                     if (settings.attya.showHints !== undefined) document.getElementById('attya_showHints').checked = settings.attya.showHints;
                 }
 
-                // Session Logging
-                if (settings.sessionLogEnabled !== undefined) {
+                // Session Log
+                if (settings.sessionLog) {
+                    if (settings.sessionLog.enabled !== undefined) {
+                        sessionLogEnabled = settings.sessionLog.enabled;
+                        document.getElementById('sessionLogToggle').checked = settings.sessionLog.enabled;
+                    }
+                    if (settings.sessionLog.panelExpanded) {
+                        document.getElementById('sessionLogPanel').classList.remove('hidden');
+                        document.getElementById('sessionLogExpandBtn').querySelector('svg').style.transform = 'rotate(180deg)';
+                    }
+                } else if (settings.sessionLogEnabled !== undefined) {
+                    // Backward compatibility with old format
                     sessionLogEnabled = settings.sessionLogEnabled;
+                    document.getElementById('sessionLogToggle').checked = settings.sessionLogEnabled;
                 }
-
-                // Sync session log UI with loaded state
-                updateSessionLogUI();
             } catch (e) {
                 console.error('Failed to load settings:', e);
             }
@@ -15389,6 +15442,176 @@
             }
         }
 
+        // ============ SESSION LOG ============
+        let sessionLog_data = [];
+        let sessionLog_enabled = true;
+
+        function sessionLogLoadFromStorage() {
+            try {
+                const saved = localStorage.getItem('sessionLog_data');
+                if (saved) {
+                    sessionLog_data = JSON.parse(saved);
+                }
+            } catch (e) {
+                console.error('Failed to load session log:', e);
+                sessionLog_data = [];
+            }
+        }
+
+        function sessionLogSaveToStorage() {
+            try {
+                localStorage.setItem('sessionLog_data', JSON.stringify(sessionLog_data));
+            } catch (e) {
+                console.error('Failed to save session log:', e);
+            }
+        }
+
+        function logSession(mode, config, results) {
+            if (!document.getElementById('sessionLogToggle').checked) return;
+            const session = {
+                id: Date.now(),
+                timestamp: new Date().toISOString(),
+                mode: mode,
+                config: config,
+                results: results
+            };
+            sessionLog_data.push(session);
+            sessionLogSaveToStorage();
+            updateSessionLogUI();
+            saveAllSettings();
+        }
+
+        function updateSessionLogUI() {
+            const count = sessionLog_data.length;
+            document.getElementById('sessionLogBadge').textContent = count;
+            document.getElementById('sessionLogCount').textContent = count;
+
+            // Calculate storage size
+            const dataStr = JSON.stringify(sessionLog_data);
+            const sizeKB = (new Blob([dataStr]).size / 1024).toFixed(1);
+            document.getElementById('sessionLogSize').textContent = sizeKB + ' KB';
+
+            // Update recent sessions list
+            const listEl = document.getElementById('recentSessionsList');
+            if (count === 0) {
+                listEl.innerHTML = 'No sessions logged yet.';
+            } else {
+                const recentSessions = sessionLog_data.slice(-10).reverse();
+                listEl.innerHTML = recentSessions.map(s => {
+                    const date = new Date(s.timestamp);
+                    const dateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+                    return `<div class="py-1 border-b border-slate-700 last:border-0">${dateStr} - ${s.mode}</div>`;
+                }).join('');
+            }
+        }
+
+        function toggleSessionLogPanel() {
+            const panel = document.getElementById('sessionLogPanel');
+            const btn = document.getElementById('sessionLogExpandBtn');
+            const svg = btn.querySelector('svg');
+            if (panel.classList.contains('hidden')) {
+                expandSessionLogPanel();
+            } else {
+                collapseSessionLogPanel();
+            }
+        }
+
+        function expandSessionLogPanel() {
+            const panel = document.getElementById('sessionLogPanel');
+            const btn = document.getElementById('sessionLogExpandBtn');
+            const svg = btn.querySelector('svg');
+            panel.classList.remove('hidden');
+            svg.style.transform = 'rotate(180deg)';
+            saveAllSettings();
+        }
+
+        function collapseSessionLogPanel() {
+            const panel = document.getElementById('sessionLogPanel');
+            const btn = document.getElementById('sessionLogExpandBtn');
+            const svg = btn.querySelector('svg');
+            panel.classList.add('hidden');
+            svg.style.transform = 'rotate(0deg)';
+            saveAllSettings();
+        }
+
+        function toggleSessionLog() {
+            saveAllSettings();
+        }
+
+        function exportSessionLogJSON() {
+            const dataStr = JSON.stringify(sessionLog_data, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'session-log-' + new Date().toISOString().slice(0, 10) + '.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function exportSessionLogSummaryCSV() {
+            if (sessionLog_data.length === 0) {
+                alert('No sessions to export.');
+                return;
+            }
+            const headers = ['Timestamp', 'Mode', 'Rounds', 'Avg Time (ms)', 'First Try %', 'Mistakes', 'Slow'];
+            const rows = sessionLog_data.map(s => [
+                s.timestamp,
+                s.mode,
+                s.results?.rounds || '',
+                s.results?.avgTime || '',
+                s.results?.firstTryPct || '',
+                s.results?.mistakes || '',
+                s.results?.slowCount || ''
+            ]);
+            const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'session-log-summary-' + new Date().toISOString().slice(0, 10) + '.csv';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function exportSessionLogDetailedCSV() {
+            if (sessionLog_data.length === 0) {
+                alert('No sessions to export.');
+                return;
+            }
+            const headers = ['Session ID', 'Timestamp', 'Mode', 'Config', 'Results'];
+            const rows = sessionLog_data.map(s => [
+                s.id,
+                s.timestamp,
+                s.mode,
+                JSON.stringify(s.config || {}),
+                JSON.stringify(s.results || {})
+            ]);
+            const csv = [headers.join(','), ...rows.map(r => r.map(c => '"' + String(c).replace(/"/g, '""') + '"').join(','))].join('\n');
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'session-log-detailed-' + new Date().toISOString().slice(0, 10) + '.csv';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function clearSessionLog() {
+            if (!confirm('Are you sure you want to clear all session log data? This cannot be undone.')) {
+                return;
+            }
+            sessionLog_data = [];
+            sessionLogSaveToStorage();
+            updateSessionLogUI();
+        }
+
         // ============ INIT ============
         drawPiano('previewPianoSvg');
         drawPiano('pianoSvg');
@@ -15442,7 +15665,8 @@
         attyaLoadHistory();
         vlLoadHistory();
         loadAllSettings();
-        updateSessionLogUI(); // Ensure session log UI is synced on page load
+        sessionLogLoadFromStorage();
+        updateSessionLogUI();
         // Show breakdown sections with cumulative stats on page load
         intShowBreakdown();
         chShowBreakdown();
