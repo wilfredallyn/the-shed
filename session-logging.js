@@ -176,6 +176,16 @@ function sessionLogExtractExpectedPitchClasses(challenge) {
         return challenge.targetChord.pitchClasses;
     }
 
+    // Direct pitchClasses (dom7v voicings)
+    if (challenge.pitchClasses instanceof Set) {
+        return Array.from(challenge.pitchClasses);
+    }
+
+    // Scale modes: expectedNotes (pent, bebop)
+    if (Array.isArray(challenge.expectedNotes)) {
+        return challenge.expectedNotes;
+    }
+
     return null;
 }
 
@@ -325,7 +335,7 @@ function exportSessionLogSummaryCSV() {
                 expectedNotes = noteNames.join(' ');
             }
 
-            var responseMs = round.result && round.result.responseMs !== undefined ? round.result.responseMs : round.durationMs || '';
+            var responseMs = round.result && round.result.responseTime !== undefined ? round.result.responseTime : round.durationMs || '';
             var correct = round.result && round.result.correct !== undefined ? round.result.correct : '';
             var mistakes = round.result && round.result.mistakes !== undefined ? round.result.mistakes : sessionLogCountMistakes(round.events);
             var slow = round.result && round.result.slow !== undefined ? round.result.slow : '';
