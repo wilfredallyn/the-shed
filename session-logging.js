@@ -239,7 +239,6 @@ function sessionLogClear() {
     }
 }
 
-
 // ==================== CSV EXPORT FUNCTIONS ====================
 
 // Note names for MIDI to note conversion
@@ -438,6 +437,38 @@ function downloadSessionLogDetailedCSV() {
     downloadSessionLogCSV(exportSessionLogDetailedCSV(), 'piano-tutor-detailed-' + sessionLogTimestamp() + '.csv');
 }
 
+/**
+ * Export all session data as JSON file download
+ */
+function exportSessionLogJSON() {
+    var exportData = {
+        exportDate: new Date().toISOString(),
+        version: '1.0',
+        sessionCount: sessionLogSessions.length,
+        sessions: sessionLogSessions
+    };
+
+    var jsonString = JSON.stringify(exportData, null, 2);
+    var blob = new Blob([jsonString], { type: 'application/json' });
+    var date = new Date().toISOString().split('T')[0];
+    var filename = 'piano-tutor-sessions-' + date + '.json';
+
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+/**
+ * Download JSON file (wrapper for UI button)
+ */
+function downloadSessionLogJSON() {
+    exportSessionLogJSON();
+}
 
 // Initialize on load
 sessionLogLoadFromStorage();
