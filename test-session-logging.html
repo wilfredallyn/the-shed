@@ -90,11 +90,16 @@
         }
 
         // Reset state before tests
-        localStorage.removeItem('sessionLogData');
-        sessionLogEnabled = false;
-        sessionLogSessions = [];
-        currentSessionLog = null;
-        currentRoundLog = null;
+        function resetState() {
+            localStorage.removeItem('sessionLogData');
+            sessionLogEnabled = false;
+            sessionLogSessions = [];
+            currentSessionLog = null;
+            currentRoundLog = null;
+            roundStartTime = null;
+        }
+
+        resetState();
 
         // ==================== TESTS ====================
 
@@ -109,10 +114,14 @@
             assertType(sessionLogRecordEvent, 'function');
             assertType(sessionLogEndRound, 'function');
             assertType(sessionLogEndSession, 'function');
-            assertType(sessionLogNormalizeChallenge, 'function');
+            assertType(sessionLogExtractExpectedPitchClasses, 'function');
+            assertType(sessionLogSaveToStorage, 'function');
+            assertType(sessionLogLoadFromStorage, 'function');
+            assertType(sessionLogClear, 'function');
         });
 
         test('sessionLogStartSession creates session object', () => {
+            resetState();
             sessionLogEnabled = true;
             sessionLogStartSession('chords', { rounds: 12, type: 'major' });
 
@@ -124,24 +133,29 @@
         });
 
         test('sessionLogStartRound creates round object', () => {
+            resetState();
             sessionLogEnabled = true;
             currentSessionLog = { mode: 'chords', rounds: [], startTime: Date.now() };
 
-            sessionLogStartRound({ prompt: 'C Major', expectedMidi: [60, 64, 67] });
+            sessionLogStartRound({ prompt: 'C Major', requiredPitchClasses: new Set([0, 4, 7]) });
 
             assert(currentRoundLog !== null, 'currentRoundLog should exist');
             assertEqual(currentRoundLog.challenge.prompt, 'C Major');
             assert(Array.isArray(currentRoundLog.events), 'events should be array');
+            assert(roundStartTime !== null, 'roundStartTime should be set');
         });
 
         test('sessionLogRecordEvent adds events with timing', () => {
+            resetState();
             sessionLogEnabled = true;
             currentSessionLog = { mode: 'chords', rounds: [], startTime: Date.now() };
             currentRoundLog = {
-                challenge: { prompt: 'C', expectedPitchClasses: [0, 4, 7] },
+                challenge: { prompt: 'C' },
+                expectedPitchClasses: [0, 4, 7],
                 events: [],
                 startTime: Date.now()
             };
+            roundStartTime = Date.now();
 
             sessionLogRecordEvent('noteOn', 60, 100);
             sessionLogRecordEvent('noteOn', 64, 90);
@@ -154,13 +168,16 @@
         });
 
         test('sessionLogRecordEvent marks correct notes', () => {
+            resetState();
             sessionLogEnabled = true;
             currentSessionLog = { mode: 'chords', rounds: [], startTime: Date.now() };
             currentRoundLog = {
-                challenge: { prompt: 'C', expectedPitchClasses: [0, 4, 7] },
+                challenge: { prompt: 'C' },
+                expectedPitchClasses: [0, 4, 7],
                 events: [],
                 startTime: Date.now()
             };
+            roundStartTime = Date.now();
 
             sessionLogRecordEvent('noteOn', 60, 100);  // C (pitch class 0) - correct
             sessionLogRecordEvent('noteOn', 61, 100);  // C# (pitch class 1) - wrong
@@ -169,77 +186,108 @@
             assertEqual(currentRoundLog.events[1].isCorrect, false, 'C# should be incorrect');
         });
 
-        test('sessionLogEndRound closes round with results', () => {
+        test('sessionLogRecordEvent includes pitchClass', () => {
+            resetState();
             sessionLogEnabled = true;
             currentSessionLog = { mode: 'chords', rounds: [], startTime: Date.now() };
             currentRoundLog = {
-                challenge: { prompt: 'C', expectedPitchClasses: [0, 4, 7] },
+                challenge: { prompt: 'C' },
+                expectedPitchClasses: [0, 4, 7],
+                events: [],
+                startTime: Date.now()
+            };
+            roundStartTime = Date.now();
+
+            sessionLogRecordEvent('noteOn', 72, 100);  // C5 (pitch class 0)
+
+            assertEqual(currentRoundLog.events[0].pitchClass, 0, 'pitchClass should be 0 for C');
+        });
+
+        test('sessionLogEndRound closes round with results', () => {
+            resetState();
+            sessionLogEnabled = true;
+            currentSessionLog = { mode: 'chords', rounds: [], startTime: Date.now() };
+            currentRoundLog = {
+                challenge: { prompt: 'C' },
+                expectedPitchClasses: [0, 4, 7],
                 events: [{ type: 'noteOn', midi: 60 }],
                 startTime: Date.now() - 1500
             };
+            roundStartTime = Date.now() - 1500;
 
-            sessionLogEndRound({ correct: true, mistakes: 0 });
+            sessionLogEndRound({ responseTime: 1500, isFirstTry: true });
 
             assertEqual(currentSessionLog.rounds.length, 1);
-            assertEqual(currentSessionLog.rounds[0].result.correct, true);
-            assert(currentSessionLog.rounds[0].responseMs > 0, 'responseMs should be set');
+            assertEqual(currentSessionLog.rounds[0].result.isFirstTry, true);
+            assert(currentSessionLog.rounds[0].durationMs > 0, 'durationMs should be set');
             assert(currentRoundLog === null, 'currentRoundLog should be cleared');
+            assert(roundStartTime === null, 'roundStartTime should be cleared');
         });
 
         test('sessionLogEndSession saves to storage', () => {
-            localStorage.removeItem('sessionLogData');
+            resetState();
             sessionLogEnabled = true;
             sessionLogSessions = [];
             currentSessionLog = {
                 mode: 'chords',
-                rounds: [{ challenge: {}, events: [], result: { correct: true } }],
+                rounds: [{ challenge: {}, events: [], result: { isFirstTry: true } }],
                 startTime: Date.now() - 5000,
                 config: { rounds: 12 }
             };
 
-            sessionLogEndSession({ avgTime: 1500, firstTryPct: 100 });
+            sessionLogEndSession();
 
             assertEqual(sessionLogSessions.length, 1);
-            assertEqual(sessionLogSessions[0].summary.avgTime, 1500);
+            assert(sessionLogSessions[0].endTime > 0, 'endTime should be set');
+            assert(sessionLogSessions[0].durationMs > 0, 'durationMs should be set');
 
             const stored = JSON.parse(localStorage.getItem('sessionLogData'));
             assert(stored !== null, 'Data should be in localStorage');
-            assertEqual(stored.sessions.length, 1);
+            assertEqual(stored.length, 1);
         });
 
-        test('sessionLogNormalizeChallenge handles chord format', () => {
-            const result = sessionLogNormalizeChallenge('chords', {
+        test('sessionLogExtractExpectedPitchClasses handles requiredPitchClasses Set', () => {
+            const result = sessionLogExtractExpectedPitchClasses({
                 name: 'C Major 7',
-                notes: [60, 64, 67, 71]
+                requiredPitchClasses: new Set([0, 4, 7, 11])
             });
 
-            assertEqual(result.prompt, 'C Major 7');
-            assert(Array.isArray(result.expectedPitchClasses), 'should have pitch classes');
+            assert(Array.isArray(result), 'should return array');
+            assertEqual(result.length, 4);
+            assert(result.includes(0), 'should include C');
+            assert(result.includes(4), 'should include E');
         });
 
-        test('sessionLogNormalizeChallenge handles interval format', () => {
-            const result = sessionLogNormalizeChallenge('intervals', {
+        test('sessionLogExtractExpectedPitchClasses handles targetMidi', () => {
+            const result = sessionLogExtractExpectedPitchClasses({
                 name: 'Major 3rd',
-                rootNote: 60,
-                targetNote: 64
+                targetMidi: 64  // E4
             });
 
-            assert(result.prompt.includes('Major 3rd') || result.prompt.includes('3rd'), 'prompt should include interval');
+            assert(Array.isArray(result), 'should return array');
+            assertEqual(result.length, 1);
+            assertEqual(result[0], 4, 'should be pitch class 4 (E)');
         });
 
-        test('sessionLogNormalizeChallenge handles scale format', () => {
-            const result = sessionLogNormalizeChallenge('scales', {
-                name: 'C Dorian',
-                notes: [60, 62, 63, 65, 67, 69, 70, 72]
+        test('sessionLogExtractExpectedPitchClasses handles direct array', () => {
+            const result = sessionLogExtractExpectedPitchClasses({
+                expectedPitchClasses: [0, 2, 4, 5, 7, 9, 11]
             });
 
-            assertEqual(result.prompt, 'C Dorian');
-            assert(result.expectedPitchClasses.length > 0, 'should have pitch classes');
+            assertEqual(result.length, 7);
+        });
+
+        test('sessionLogExtractExpectedPitchClasses returns null for unknown format', () => {
+            const result = sessionLogExtractExpectedPitchClasses({
+                someOtherProperty: 'value'
+            });
+
+            assertEqual(result, null);
         });
 
         test('Logging disabled does nothing', () => {
+            resetState();
             sessionLogEnabled = false;
-            sessionLogSessions = [];
             currentSessionLog = null;
 
             sessionLogStartSession('chords', {});
@@ -248,9 +296,11 @@
         });
 
         test('Events not recorded when no active round', () => {
+            resetState();
             sessionLogEnabled = true;
             currentSessionLog = { mode: 'test', rounds: [] };
             currentRoundLog = null;
+            roundStartTime = null;
 
             // Should not throw
             sessionLogRecordEvent('noteOn', 60, 100);
@@ -259,57 +309,60 @@
             assert(true);
         });
 
-        test('Session storage limit enforced', () => {
-            localStorage.removeItem('sessionLogData');
+        test('Events not recorded when roundStartTime is null', () => {
+            resetState();
             sessionLogEnabled = true;
-            sessionLogSessions = [];
+            currentSessionLog = { mode: 'test', rounds: [] };
+            currentRoundLog = { events: [], expectedPitchClasses: [0] };
+            roundStartTime = null;  // This guard should prevent recording
 
-            // Create 105 sessions (over 100 limit)
-            for (let i = 0; i < 105; i++) {
-                sessionLogSessions.push({
-                    id: `test-${i}`,
-                    mode: 'test',
-                    rounds: [],
-                    startTime: Date.now(),
-                    endTime: Date.now(),
-                    summary: {}
-                });
-            }
+            sessionLogRecordEvent('noteOn', 60, 100);
 
-            sessionLogSave();
-            sessionLogLoad();
+            assertEqual(currentRoundLog.events.length, 0, 'No events should be recorded');
+        });
 
-            assert(sessionLogSessions.length <= 100, `Should have max 100 sessions, got ${sessionLogSessions.length}`);
+        test('sessionLogClear resets all state', () => {
+            sessionLogEnabled = true;
+            sessionLogSessions = [{ mode: 'test' }];
+            currentSessionLog = { mode: 'test' };
+            currentRoundLog = { events: [] };
+            roundStartTime = Date.now();
+            localStorage.setItem('sessionLogData', '[]');
+
+            sessionLogClear();
+
+            assertEqual(sessionLogSessions.length, 0);
+            assertEqual(currentSessionLog, null);
+            assertEqual(currentRoundLog, null);
+            assertEqual(roundStartTime, null);
+            assertEqual(localStorage.getItem('sessionLogData'), null);
         });
 
         test('Full session workflow', () => {
-            localStorage.removeItem('sessionLogData');
+            resetState();
             sessionLogEnabled = true;
-            sessionLogSessions = [];
-            currentSessionLog = null;
-            currentRoundLog = null;
 
             // Start session
             sessionLogStartSession('chords', { rounds: 2 });
             assert(currentSessionLog !== null);
 
             // Round 1
-            sessionLogStartRound({ prompt: 'C Major', expectedMidi: [60, 64, 67] });
+            sessionLogStartRound({ prompt: 'C Major', requiredPitchClasses: new Set([0, 4, 7]) });
             sessionLogRecordEvent('noteOn', 60, 100);
             sessionLogRecordEvent('noteOn', 64, 100);
             sessionLogRecordEvent('noteOn', 67, 100);
-            sessionLogEndRound({ correct: true, mistakes: 0 });
+            sessionLogEndRound({ responseTime: 1200, isFirstTry: true });
 
             // Round 2
-            sessionLogStartRound({ prompt: 'G Major', expectedMidi: [55, 59, 62] });
-            sessionLogRecordEvent('noteOn', 55, 100);
-            sessionLogRecordEvent('noteOn', 58, 100);  // Wrong note!
-            sessionLogRecordEvent('noteOn', 59, 100);
-            sessionLogRecordEvent('noteOn', 62, 100);
-            sessionLogEndRound({ correct: true, mistakes: 1 });
+            sessionLogStartRound({ prompt: 'G Major', requiredPitchClasses: new Set([7, 11, 2]) });
+            sessionLogRecordEvent('noteOn', 55, 100);  // G
+            sessionLogRecordEvent('noteOn', 58, 100);  // Wrong note! (Bb, pitch class 10)
+            sessionLogRecordEvent('noteOn', 59, 100);  // B
+            sessionLogRecordEvent('noteOn', 62, 100);  // D
+            sessionLogEndRound({ responseTime: 1800, isFirstTry: false });
 
             // End session
-            sessionLogEndSession({ avgTime: 2000, firstTryPct: 50 });
+            sessionLogEndSession();
 
             // Verify
             assertEqual(sessionLogSessions.length, 1);
@@ -321,6 +374,10 @@
             const round2Events = sessionLogSessions[0].rounds[1].events;
             const wrongNote = round2Events.find(e => e.midi === 58);
             assertEqual(wrongNote.isCorrect, false, 'Wrong note should be flagged');
+
+            // Check correct notes were flagged
+            const correctNote = round2Events.find(e => e.midi === 55);
+            assertEqual(correctNote.isCorrect, true, 'G should be correct');
         });
 
         // ==================== CSV EXPORT TESTS ====================
