@@ -128,6 +128,11 @@ function sessionLogEndSession() {
     currentSessionLog = null;
     currentRoundLog = null;
     roundStartTime = null;
+
+    // Update UI if available
+    if (typeof updateSessionLogUI === 'function') {
+        updateSessionLogUI();
+    }
 }
 
 /**
