@@ -138,34 +138,6 @@
                 </div>
             </a>
             <div class="flex items-center gap-3">
-                <!-- Session Log Controls (Dropdown) -->
-                <div class="relative">
-                    <button onclick="toggleSessionLogDropdown()" class="flex items-center gap-2 px-3 py-1.5 rounded bg-slate-800 border border-slate-700 hover:bg-slate-700 transition">
-                        <span class="text-xs text-slate-400">Log</span>
-                        <div class="relative" onclick="event.stopPropagation()">
-                            <input type="checkbox" id="sessionLogToggle" onchange="toggleSessionLog()" class="sr-only peer">
-                            <div onclick="document.getElementById('sessionLogToggle').click()" class="w-8 h-4 bg-slate-600 rounded-full peer peer-checked:bg-green-600 transition cursor-pointer"></div>
-                            <div onclick="document.getElementById('sessionLogToggle').click()" class="absolute left-0.5 top-0.5 w-3 h-3 bg-white rounded-full transition peer-checked:translate-x-4 cursor-pointer"></div>
-                        </div>
-                        <span id="sessionLogCount" class="text-xs text-slate-500"></span>
-                        <svg class="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                    </button>
-                    <!-- Dropdown Menu -->
-                    <div id="sessionLogDropdown" class="hidden absolute right-0 mt-1 w-48 bg-slate-800 border border-slate-700 rounded-lg shadow-lg z-50">
-                        <div id="sessionLogStats" class="px-3 py-2 border-b border-slate-700 text-xs text-slate-400">
-                            No sessions recorded
-                        </div>
-                        <button onclick="exportSessionLogJSON(); closeSessionLogDropdown()" class="w-full px-3 py-2 text-left text-sm text-slate-300 hover:bg-slate-700 flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed" id="exportJsonBtn">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                            Export JSON
-                        </button>
-                        <div class="border-t border-slate-700"></div>
-                        <button onclick="clearSessionLog(); closeSessionLogDropdown()" class="w-full px-3 py-2 text-left text-sm text-red-400 hover:bg-slate-700 flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed" id="clearLogBtn">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                            Clear All Data
-                        </button>
-                    </div>
-                </div>
                 <!-- Collapsed MIDI settings (shown when connected) -->
                 <button id="midiSettingsBtn" onclick="toggleMidiSettings()" class="hidden flex items-center gap-2 px-3 py-1 rounded bg-slate-700 hover:bg-slate-600 text-sm transition">
                     <span class="text-slate-400">MIDI:</span>
@@ -3642,7 +3614,7 @@
                 </div>
                 <div class="flex items-center gap-3">
                     <label class="inline-flex items-center cursor-pointer">
-                        <input type="checkbox" id="sessionLogToggle" class="w-4 h-4 rounded bg-slate-700 border-slate-600 mr-2" checked>
+                        <input type="checkbox" id="sessionLogToggle" onchange="toggleSessionLog()" class="w-4 h-4 rounded bg-slate-700 border-slate-600 mr-2" checked>
                         <span class="text-sm text-slate-400">Enable Logging</span>
                     </label>
                     <button id="sessionLogExpandBtn" onclick="toggleSessionLogPanel()" class="text-slate-400 hover:text-white transition">
@@ -3657,11 +3629,9 @@
                     <span class="mx-2">|</span>
                     <span>Size: <span id="sessionLogSize">0 KB</span></span>
                 </div>
-                <!-- Export Buttons -->
+                <!-- Export Button -->
                 <div class="flex gap-2 mb-4">
                     <button id="exportJsonBtn" onclick="exportSessionLogJSON()" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm rounded transition">Export JSON</button>
-                    <button id="exportSummaryCsvBtn" onclick="exportSessionLogSummaryCSV()" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm rounded transition">Summary CSV</button>
-                    <button id="exportDetailedCsvBtn" onclick="exportSessionLogDetailedCSV()" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm rounded transition">Detailed CSV</button>
                 </div>
                 <!-- Recent Sessions List -->
                 <div class="mb-4">
@@ -13645,24 +13615,6 @@
             saveAllSettings();
         }
 
-        function toggleSessionLogDropdown() {
-            const dropdown = document.getElementById('sessionLogDropdown');
-            dropdown.classList.toggle('hidden');
-        }
-
-        function closeSessionLogDropdown() {
-            document.getElementById('sessionLogDropdown').classList.add('hidden');
-        }
-
-        // Close dropdown when clicking outside
-        document.addEventListener('click', function(e) {
-            const dropdown = document.getElementById('sessionLogDropdown');
-            const container = dropdown?.parentElement;
-            if (container && !container.contains(e.target)) {
-                dropdown.classList.add('hidden');
-            }
-        });
-
         function clearSessionLog() {
             if (!confirm('Clear all session log data? This cannot be undone.')) return;
             sessionLogSessions = [];
@@ -13674,8 +13626,10 @@
             const toggle = document.getElementById('sessionLogToggle');
             const jsonBtn = document.getElementById('exportJsonBtn');
             const clearBtn = document.getElementById('clearLogBtn');
+            const badge = document.getElementById('sessionLogBadge');
             const countEl = document.getElementById('sessionLogCount');
-            const statsEl = document.getElementById('sessionLogStats');
+            const sizeEl = document.getElementById('sessionLogSize');
+            const listEl = document.getElementById('recentSessionsList');
 
             // Sync toggle with state
             if (toggle) {
@@ -13687,18 +13641,30 @@
             if (jsonBtn) jsonBtn.disabled = !hasData;
             if (clearBtn) clearBtn.disabled = !hasData;
 
-            // Update count badge
-            if (countEl) {
-                countEl.textContent = hasData ? `(${sessionLogSessions.length})` : '';
+            // Update badge and count
+            const count = sessionLogSessions ? sessionLogSessions.length : 0;
+            if (badge) badge.textContent = count;
+            if (countEl) countEl.textContent = count;
+
+            // Update storage size
+            if (sizeEl) {
+                const dataStr = JSON.stringify(sessionLogSessions || []);
+                const sizeKB = (new Blob([dataStr]).size / 1024).toFixed(1);
+                sizeEl.textContent = sizeKB + ' KB';
             }
 
-            // Update stats display
-            if (statsEl) {
+            // Update recent sessions list
+            if (listEl) {
                 if (!hasData) {
-                    statsEl.textContent = 'No sessions recorded';
+                    listEl.innerHTML = 'No sessions logged yet.';
                 } else {
-                    const totalRounds = sessionLogSessions.reduce((sum, s) => sum + (s.rounds?.length || 0), 0);
-                    statsEl.textContent = `${sessionLogSessions.length} session${sessionLogSessions.length !== 1 ? 's' : ''}, ${totalRounds} rounds`;
+                    const recentSessions = sessionLogSessions.slice(-10).reverse();
+                    listEl.innerHTML = recentSessions.map(s => {
+                        const date = new Date(s.startTime || s.timestamp);
+                        const dateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+                        const rounds = s.rounds ? s.rounds.length : 0;
+                        return `<div class="py-1 border-b border-slate-700 last:border-0">${dateStr} - ${s.mode} (${rounds} rounds)</div>`;
+                    }).join('');
                 }
             }
         }
@@ -15442,69 +15408,7 @@
             }
         }
 
-        // ============ SESSION LOG ============
-        let sessionLog_data = [];
-        let sessionLog_enabled = true;
-
-        function sessionLogLoadFromStorage() {
-            try {
-                const saved = localStorage.getItem('sessionLog_data');
-                if (saved) {
-                    sessionLog_data = JSON.parse(saved);
-                }
-            } catch (e) {
-                console.error('Failed to load session log:', e);
-                sessionLog_data = [];
-            }
-        }
-
-        function sessionLogSaveToStorage() {
-            try {
-                localStorage.setItem('sessionLog_data', JSON.stringify(sessionLog_data));
-            } catch (e) {
-                console.error('Failed to save session log:', e);
-            }
-        }
-
-        function logSession(mode, config, results) {
-            if (!document.getElementById('sessionLogToggle').checked) return;
-            const session = {
-                id: Date.now(),
-                timestamp: new Date().toISOString(),
-                mode: mode,
-                config: config,
-                results: results
-            };
-            sessionLog_data.push(session);
-            sessionLogSaveToStorage();
-            updateSessionLogUI();
-            saveAllSettings();
-        }
-
-        function updateSessionLogUI() {
-            const count = sessionLog_data.length;
-            document.getElementById('sessionLogBadge').textContent = count;
-            document.getElementById('sessionLogCount').textContent = count;
-
-            // Calculate storage size
-            const dataStr = JSON.stringify(sessionLog_data);
-            const sizeKB = (new Blob([dataStr]).size / 1024).toFixed(1);
-            document.getElementById('sessionLogSize').textContent = sizeKB + ' KB';
-
-            // Update recent sessions list
-            const listEl = document.getElementById('recentSessionsList');
-            if (count === 0) {
-                listEl.innerHTML = 'No sessions logged yet.';
-            } else {
-                const recentSessions = sessionLog_data.slice(-10).reverse();
-                listEl.innerHTML = recentSessions.map(s => {
-                    const date = new Date(s.timestamp);
-                    const dateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
-                    return `<div class="py-1 border-b border-slate-700 last:border-0">${dateStr} - ${s.mode}</div>`;
-                }).join('');
-            }
-        }
-
+        // ============ SESSION LOG PANEL ============
         function toggleSessionLogPanel() {
             const panel = document.getElementById('sessionLogPanel');
             const btn = document.getElementById('sessionLogExpandBtn');
@@ -15532,84 +15436,6 @@
             panel.classList.add('hidden');
             svg.style.transform = 'rotate(0deg)';
             saveAllSettings();
-        }
-
-        function toggleSessionLog() {
-            saveAllSettings();
-        }
-
-        function exportSessionLogJSON() {
-            const dataStr = JSON.stringify(sessionLog_data, null, 2);
-            const blob = new Blob([dataStr], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'session-log-' + new Date().toISOString().slice(0, 10) + '.json';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }
-
-        function exportSessionLogSummaryCSV() {
-            if (sessionLog_data.length === 0) {
-                alert('No sessions to export.');
-                return;
-            }
-            const headers = ['Timestamp', 'Mode', 'Rounds', 'Avg Time (ms)', 'First Try %', 'Mistakes', 'Slow'];
-            const rows = sessionLog_data.map(s => [
-                s.timestamp,
-                s.mode,
-                s.results?.rounds || '',
-                s.results?.avgTime || '',
-                s.results?.firstTryPct || '',
-                s.results?.mistakes || '',
-                s.results?.slowCount || ''
-            ]);
-            const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'session-log-summary-' + new Date().toISOString().slice(0, 10) + '.csv';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }
-
-        function exportSessionLogDetailedCSV() {
-            if (sessionLog_data.length === 0) {
-                alert('No sessions to export.');
-                return;
-            }
-            const headers = ['Session ID', 'Timestamp', 'Mode', 'Config', 'Results'];
-            const rows = sessionLog_data.map(s => [
-                s.id,
-                s.timestamp,
-                s.mode,
-                JSON.stringify(s.config || {}),
-                JSON.stringify(s.results || {})
-            ]);
-            const csv = [headers.join(','), ...rows.map(r => r.map(c => '"' + String(c).replace(/"/g, '""') + '"').join(','))].join('\n');
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'session-log-detailed-' + new Date().toISOString().slice(0, 10) + '.csv';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }
-
-        function clearSessionLog() {
-            if (!confirm('Are you sure you want to clear all session log data? This cannot be undone.')) {
-                return;
-            }
-            sessionLog_data = [];
-            sessionLogSaveToStorage();
-            updateSessionLogUI();
         }
 
         // ============ INIT ============
