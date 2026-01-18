@@ -380,6 +380,151 @@
             assertEqual(correctNote.isCorrect, true, 'G should be correct');
         });
 
+        // ==================== CSV EXPORT TESTS ====================
+
+        test('exportSessionLogSummaryCSV function exists', () => {
+            assertType(exportSessionLogSummaryCSV, 'function', 'exportSessionLogSummaryCSV should be a function');
+        });
+
+        test('exportSessionLogDetailedCSV function exists', () => {
+            assertType(exportSessionLogDetailedCSV, 'function', 'exportSessionLogDetailedCSV should be a function');
+        });
+
+        test('sessionLogEscapeCSV escapes commas', () => {
+            const result = sessionLogEscapeCSV('hello, world');
+            assertEqual(result, '"hello, world"', 'String with comma should be quoted');
+        });
+
+        test('sessionLogEscapeCSV escapes quotes', () => {
+            const result = sessionLogEscapeCSV('say "hello"');
+            assertEqual(result, '"say ""hello"""', 'Quotes should be doubled and string wrapped');
+        });
+
+        test('sessionLogEscapeCSV escapes newlines', () => {
+            const result = sessionLogEscapeCSV('line1\nline2');
+            assertEqual(result, '"line1\nline2"', 'String with newline should be quoted');
+        });
+
+        test('sessionLogEscapeCSV leaves plain strings alone', () => {
+            const result = sessionLogEscapeCSV('hello world');
+            assertEqual(result, 'hello world', 'Plain string should not be modified');
+        });
+
+        test('exportSessionLogSummaryCSV returns valid CSV string', () => {
+            // Setup test data
+            localStorage.removeItem('sessionLogData');
+            sessionLogEnabled = true;
+            sessionLogSessions = [];
+            currentSessionLog = null;
+            currentRoundLog = null;
+
+            sessionLogStartSession('chords', { rounds: 2 });
+            sessionLogStartRound({ prompt: 'C Major', expectedPitchClasses: [0, 4, 7] });
+            sessionLogRecordEvent('noteOn', 60, 100);
+            sessionLogRecordEvent('noteOn', 64, 100);
+            sessionLogRecordEvent('noteOn', 67, 100);
+            sessionLogEndRound({ correct: true, mistakes: 0, responseMs: 1500, slow: false });
+            sessionLogEndSession();
+
+            const csv = exportSessionLogSummaryCSV();
+
+            assert(typeof csv === 'string', 'Should return a string');
+            assert(csv.includes('session_id'), 'Should have session_id header');
+            assert(csv.includes('mode'), 'Should have mode header');
+            assert(csv.includes('round_num'), 'Should have round_num header');
+            assert(csv.includes('response_ms'), 'Should have response_ms header');
+            assert(csv.includes('chords'), 'Should contain mode value');
+        });
+
+        test('exportSessionLogDetailedCSV returns valid CSV string', () => {
+            // Setup test data
+            localStorage.removeItem('sessionLogData');
+            sessionLogEnabled = true;
+            sessionLogSessions = [];
+            currentSessionLog = null;
+            currentRoundLog = null;
+
+            sessionLogStartSession('scales', { rounds: 1 });
+            sessionLogStartRound({ prompt: 'C Major Scale', expectedPitchClasses: [0, 2, 4, 5, 7, 9, 11] });
+            sessionLogRecordEvent('noteOn', 60, 100);
+            sessionLogRecordEvent('noteOff', 60, 0);
+            sessionLogRecordEvent('noteOn', 62, 100);
+            sessionLogEndRound({ correct: true });
+            sessionLogEndSession();
+
+            const csv = exportSessionLogDetailedCSV();
+
+            assert(typeof csv === 'string', 'Should return a string');
+            assert(csv.includes('session_id'), 'Should have session_id header');
+            assert(csv.includes('event_type'), 'Should have event_type header');
+            assert(csv.includes('midi_note'), 'Should have midi_note header');
+            assert(csv.includes('offset_ms'), 'Should have offset_ms header');
+            assert(csv.includes('noteOn'), 'Should contain noteOn event');
+            assert(csv.includes('noteOff'), 'Should contain noteOff event');
+        });
+
+        test('exportSessionLogSummaryCSV handles empty data', () => {
+            sessionLogSessions = [];
+            const csv = exportSessionLogSummaryCSV();
+            assert(typeof csv === 'string', 'Should return a string');
+            // Should still have header row
+            assert(csv.includes('session_id'), 'Should have headers even with no data');
+        });
+
+        test('exportSessionLogDetailedCSV handles empty data', () => {
+            sessionLogSessions = [];
+            const csv = exportSessionLogDetailedCSV();
+            assert(typeof csv === 'string', 'Should return a string');
+            // Should still have header row
+            assert(csv.includes('session_id'), 'Should have headers even with no data');
+        });
+
+        test('Summary CSV has correct column count', () => {
+            localStorage.removeItem('sessionLogData');
+            sessionLogEnabled = true;
+            sessionLogSessions = [];
+
+            sessionLogStartSession('chords', { rounds: 1 });
+            sessionLogStartRound({ prompt: 'Test', expectedPitchClasses: [0] });
+            sessionLogRecordEvent('noteOn', 60, 100);
+            sessionLogEndRound({ correct: true, mistakes: 0, responseMs: 1000, slow: false });
+            sessionLogEndSession();
+
+            const csv = exportSessionLogSummaryCSV();
+            const lines = csv.trim().split('\n');
+            const headerCols = lines[0].split(',').length;
+            const dataCols = lines[1].split(',').length;
+
+            // Expected columns: session_id, mode, config, round_num, challenge_prompt, expected_notes, response_ms, correct, mistakes, slow
+            assertEqual(headerCols, 10, 'Header should have 10 columns');
+            assertEqual(dataCols, headerCols, 'Data row should match header column count');
+        });
+
+        test('Detailed CSV has correct column count', () => {
+            localStorage.removeItem('sessionLogData');
+            sessionLogEnabled = true;
+            sessionLogSessions = [];
+
+            sessionLogStartSession('chords', { rounds: 1 });
+            sessionLogStartRound({ prompt: 'Test', expectedPitchClasses: [0] });
+            sessionLogRecordEvent('noteOn', 60, 100);
+            sessionLogEndRound({ correct: true });
+            sessionLogEndSession();
+
+            const csv = exportSessionLogDetailedCSV();
+            const lines = csv.trim().split('\n');
+            const headerCols = lines[0].split(',').length;
+            const dataCols = lines[1].split(',').length;
+
+            // Expected columns: session_id, mode, round_num, challenge_prompt, event_type, midi_note, note_name, octave, offset_ms, is_correct, round_result
+            assertEqual(headerCols, 11, 'Header should have 11 columns');
+            assertEqual(dataCols, headerCols, 'Data row should match header column count');
+        });
+
+        test('downloadSessionLogCSV function exists', () => {
+            assertType(downloadSessionLogCSV, 'function', 'downloadSessionLogCSV should be a function');
+        });
+
         // ==================== DISPLAY RESULTS ====================
 
         const resultsDiv = document.getElementById('results');
