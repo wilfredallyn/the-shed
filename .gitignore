@@ -4,3 +4,4 @@
 # Claude Code internal
 .claude/
 .beads/
+.worktrees
